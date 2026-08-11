@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>見積支援PoC ― Next.js版 設計</title>
+<style>
+  :root{--ink:#1a1a1a;--sub:#555;--line:#e0e0e0;--bg:#fff;--accent:#1f4e79;--accent-bg:#eef3f9;
+    --ok:#2e6b2e;--ok-bg:#e9f5e9;--warn:#8a5a00;--warn-bg:#fdf6e3;--soft:#f7f8fa;}
+  *{box-sizing:border-box}
+  body{font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",system-ui,sans-serif;color:var(--ink);
+    line-height:1.7;margin:0;background:#f4f5f7;}
+  .wrap{max-width:900px;margin:0 auto;background:#fff;padding:40px 48px 70px;box-shadow:0 0 20px rgba(0,0,0,.06)}
+  h1{font-size:1.7rem;color:var(--accent);margin:0 0 .2em}
+  .status{display:inline-block;font-size:.78rem;background:var(--warn-bg);color:var(--warn);border:1px solid #e8d98f;border-radius:20px;padding:3px 12px;margin-bottom:.4em}
+  .status.done{background:var(--ok-bg);color:var(--ok);border-color:#bcdcbc}
+  .lead{color:var(--sub);font-size:.9rem;margin:.2em 0 1.4em}
+  h2{font-size:1.25rem;color:var(--accent);background:var(--accent-bg);border-left:5px solid var(--accent);padding:.3em .6em;margin:2em 0 .6em}
+  h3{font-size:1.03rem;border-bottom:2px solid var(--line);padding-bottom:.2em;margin:1.4em 0 .4em}
+  p,li,td,th{font-size:.92rem}
+  table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.86rem}
+  th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--accent-bg);color:var(--accent)}
+  tbody tr:nth-child(even){background:var(--soft)}
+  code{background:#f2f2f2;padding:1px 5px;border-radius:4px;font-size:.86em}
+  .fig{border:1px solid var(--line);border-radius:10px;padding:16px;background:#fcfdfe;margin:1.2em 0}
+  .fig svg{display:block;width:100%;height:auto}
+  .callout{border:1px solid var(--line);border-left:4px solid var(--accent);background:#fafcff;border-radius:6px;padding:12px 16px;margin:1em 0;font-size:.9rem}
+  .callout.warn{border-left-color:var(--warn);background:var(--warn-bg)}
+  .phase{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:1em 0}
+  @media(max-width:640px){.phase{grid-template-columns:1fr}}
+  .pcard{border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .pcard.now{border-color:#bcdcbc;background:var(--ok-bg)}
+  .pcard h4{margin:.1em 0 .4em;font-size:.95rem}
+  .pcard.now h4{color:var(--ok)} .pcard.next h4{color:var(--accent)}
+  .pcard ul{margin:.3em 0;padding-left:1.2em} .pcard li{font-size:.85rem;margin:.2em 0}
+  .tag{display:inline-block;font-size:.72rem;padding:1px 8px;border-radius:10px;background:var(--accent-bg);color:var(--accent);margin-left:6px}
+  .no{color:#8a2e2e}
+  ul.check li{margin:.3em 0}
+  .small{font-size:.82rem;color:var(--sub)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="status done">Phase 1 実装済み(as-built)・デプロイ前</div>
+  <h1>見積支援PoC ― Next.js版 設計</h1>
+  <p class="lead">現行の静的PoC(<code>poc/Poc.html</code>)を、<b>過去見積を登録して溜め、検索・流用して見積の叩き台を出す</b>Webアプリにした。本書は実装に合わせた as-built。作成 2026-07-27 / 最終更新 2026-08-10</p>
+
+  <h2>1. 目的とスコープ</h2>
+  <p>現行は「合成データを埋め込んだ静的HTML」で、登録・保存ができない。本来の価値(過去データの再利用)を出すため、<b>書き込みできるDB＋Webアプリ</b>にする。今回(Phase 1)は <b>登録・照会(一覧)・編集・削除(フルCRUD)・語句検索(LIKE)・叩き台生成・確定金額の記録・公開</b>まで。認証なし(公開デモ)。</p>
+
+  <h2>2. 技術構成</h2>
+  <div class="fig">
+  <svg viewBox="0 0 760 320" role="img" aria-label="構成図: GitHub→Vercel(Next.js)、ブラウザ↔Next.js↔Neon">
+    <defs><marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#1f4e79"/></marker></defs>
+    <!-- GitHub -->
+    <rect x="300" y="12" width="200" height="46" rx="8" fill="#fff" stroke="#333"/>
+    <text x="400" y="33" text-anchor="middle" font-size="13" font-weight="700" fill="#1a1a1a">GitHub リポジトリ</text>
+    <text x="400" y="49" text-anchor="middle" font-size="10.5" fill="#555">ソース管理(履歴・ロールバック)</text>
+    <line x1="400" y1="58" x2="400" y2="92" stroke="#1f4e79" stroke-width="1.5" marker-end="url(#ar)"/>
+    <text x="410" y="80" font-size="10" fill="#555">git push → 自動デプロイ</text>
+    <!-- Browser -->
+    <rect x="30" y="150" width="160" height="80" rx="8" fill="#eef3f9" stroke="#1f4e79"/>
+    <text x="110" y="182" text-anchor="middle" font-size="13" font-weight="700" fill="#1f4e79">ブラウザ</text>
+    <text x="110" y="200" text-anchor="middle" font-size="10.5" fill="#555">誰でも触れる公開</text>
+    <text x="110" y="215" text-anchor="middle" font-size="10.5" fill="#555">(認証なし)</text>
+    <!-- Vercel / Next.js -->
+    <rect x="290" y="95" width="220" height="150" rx="10" fill="#fff" stroke="#1f4e79" stroke-width="2"/>
+    <text x="400" y="118" text-anchor="middle" font-size="13" font-weight="700" fill="#1f4e79">Vercel ／ Next.js</text>
+    <rect x="308" y="130" width="184" height="42" rx="6" fill="#f7f8fa" stroke="#ccd"/>
+    <text x="400" y="147" text-anchor="middle" font-size="11.5" fill="#1a1a1a">UI(画面・登録フォーム)</text>
+    <text x="400" y="163" text-anchor="middle" font-size="10" fill="#555">計算ロジック=共通TS関数</text>
+    <rect x="308" y="182" width="184" height="46" rx="6" fill="#eef3f9" stroke="#ccd"/>
+    <text x="400" y="200" text-anchor="middle" font-size="11.5" fill="#1a1a1a">Server Action(サーバ処理)</text>
+    <text x="400" y="216" text-anchor="middle" font-size="10" fill="#555">Drizzle ORM で DB 問い合わせ</text>
+    <!-- Neon -->
+    <rect x="600" y="150" width="150" height="80" rx="8" fill="#e9f5e9" stroke="#2e6b2e"/>
+    <text x="675" y="182" text-anchor="middle" font-size="13" font-weight="700" fill="#2e6b2e">Neon</text>
+    <text x="675" y="200" text-anchor="middle" font-size="10.5" fill="#555">サーバーレス</text>
+    <text x="675" y="215" text-anchor="middle" font-size="10.5" fill="#555">Postgres</text>
+    <!-- arrows -->
+    <line x1="192" y1="180" x2="286" y2="165" stroke="#1f4e79" stroke-width="1.5" marker-end="url(#ar)"/>
+    <line x1="286" y1="185" x2="192" y2="200" stroke="#1f4e79" stroke-width="1.5" marker-end="url(#ar)"/>
+    <text x="238" y="160" text-anchor="middle" font-size="10" fill="#555">画面</text>
+    <line x1="512" y1="185" x2="596" y2="190" stroke="#1f4e79" stroke-width="1.5" marker-end="url(#ar)"/>
+    <line x1="596" y1="172" x2="512" y2="165" stroke="#1f4e79" stroke-width="1.5" marker-end="url(#ar)"/>
+    <text x="554" y="158" text-anchor="middle" font-size="10" fill="#555">SQL</text>
+    <text x="675" y="255" text-anchor="middle" font-size="9.5" fill="#8a2e2e">接続文字列はサーバ限定</text>
+    <text x="675" y="268" text-anchor="middle" font-size="9.5" fill="#8a2e2e">(クライアントに出さない)</text>
+  </svg>
+  </div>
+  <table>
+    <thead><tr><th>層</th><th>採用</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td>フレームワーク</td><td><b>Next.js(App Router)</b></td><td>UIとサーバ処理を1つに</td></tr>
+      <tr><td>DB</td><td><b>Neon(サーバーレス Postgres)</b></td><td>Supabaseの無料枠を使わない。将来 pgvector で意味検索へ拡張可</td></tr>
+      <tr><td>DBアクセス</td><td><b>Drizzle ORM</b></td><td>型安全・Neon/Turso両対応。SQL文字列を手書きしない</td></tr>
+      <tr><td>ホスティング</td><td><b>Vercel</b></td><td>GitHub連携で <code>git push</code>→自動デプロイ</td></tr>
+      <tr><td>ソース管理</td><td><b>GitHub</b></td><td>Vercelに必須ではないが推奨(履歴・自動デプロイ・ロールバック)</td></tr>
+      <tr><td>検索</td><td><b>Phase 1: LIKE</b> → Phase 2: pgvector</td><td>まず語句一致で成立、意味検索は後付け</td></tr>
+      <tr><td>認証</td><td>なし</td><td>公開デモ</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn"><b>セキュリティ</b>: Neon の接続文字列は<b>サーバ側のみ</b>(環境変数)。ブラウザから直接DBに繋がず、Server Action / Route Handler 経由にする。</div>
+
+  <h2>3. データモデル(3テーブル・第3正規形)</h2>
+  <p class="small">方針: 更新の走る取引データなので <b>3NF</b>。ただし過剰分割しない ― カテゴリ列(type/size/color/data_state/reuse)は <b>ENUM</b>(辞書テーブル化しない=スカラで従属もなく3NF)、加工は <b>text[]</b>、用紙だけ <code>paper→paper_family</code> の推移的従属を除くため <b>papers 辞書</b>に分離。</p>
+
+  <h3>customers(顧客)</h3>
+  <table><thead><tr><th>列</th><th>型</th><th>説明</th></tr></thead><tbody>
+    <tr><td>id</td><td>serial PK</td><td></td></tr>
+    <tr><td>name</td><td>text</td><td>顧客名</td></tr>
+    <tr><td>note</td><td>text(null可)</td><td>メモ</td></tr>
+    <tr><td>created_at</td><td>timestamptz</td><td></td></tr>
+  </tbody></table>
+
+  <h3>papers(用紙辞書)</h3>
+  <table><thead><tr><th>列</th><th>型</th><th>説明</th></tr></thead><tbody>
+    <tr><td>name</td><td>text PK</td><td>用紙名(例: コート90)</td></tr>
+    <tr><td>family</td><td>text</td><td>用紙系統(例: コート系)。paper→family の従属をここに閉じる</td></tr>
+  </tbody></table>
+
+  <h3>estimates(見積)</h3>
+  <table><thead><tr><th>列</th><th>型</th><th>説明</th></tr></thead><tbody>
+    <tr><td>id</td><td>serial PK</td><td></td></tr>
+    <tr><td>code</td><td>text(null可)</td><td>表示コード。シードは E-001…、<b>手動登録は insert 後に <code>E-{id}</code> を自動採番</b>(D39 / B2)</td></tr>
+    <tr><td>name</td><td>text</td><td>案件名(表示)</td></tr>
+    <tr><td>customer_id</td><td>int FK→customers(null可)</td><td>どの顧客か(S3の受け皿)</td></tr>
+    <tr><td>status</td><td>ENUM</td><td>reference / draft / confirmed / issued</td></tr>
+    <tr><td>source</td><td>ENUM</td><td>seed / manual / tool</td></tr>
+    <tr><td>type</td><td>ENUM</td><td>種類(チラシ/名刺…)</td></tr>
+    <tr><td>size</td><td>ENUM</td><td>サイズ(A4/名刺…)</td></tr>
+    <tr><td>paper</td><td>text FK→papers(name)</td><td>用紙(family は JOIN)</td></tr>
+    <tr><td>color</td><td>ENUM</td><td>色(両面4C/特色2C…)</td></tr>
+    <tr><td>qty</td><td>integer</td><td>数量</td></tr>
+    <tr><td>finishing</td><td>text[]</td><td>加工(複数)</td></tr>
+    <tr><td>data_state</td><td>ENUM</td><td>支給データの状態</td></tr>
+    <tr><td>reuse</td><td>ENUM</td><td>型・版・色の流用</td></tr>
+    <tr><td>amount</td><td>integer</td><td>見積金額(価格・スコアの単価計算に使用)</td></tr>
+    <tr><td>cost</td><td>integer</td><td>原価</td></tr>
+    <tr><td>draft_amount</td><td>integer(null可)</td><td>ツールの叩き台(乖離分析用)</td></tr>
+    <tr><td>reason</td><td>text(null可)</td><td>補正理由(<b>検索対象</b>)</td></tr>
+    <tr><td>rework</td><td>text(null可)</td><td>手戻り事由(<b>検索対象</b>)</td></tr>
+    <tr><td>note</td><td>text(null可)</td><td>メモ(<b>検索対象</b>)</td></tr>
+    <tr><td>lead_days</td><td>integer</td><td>納期(営業日)</td></tr>
+    <tr><td>date</td><td>date(null可)</td><td>案件日</td></tr>
+    <tr><td>created_at / updated_at</td><td>timestamptz</td><td></td></tr>
+    <tr><td>(将来) embedding</td><td>vector(N)</td><td>意味検索用・Phase 2</td></tr>
+  </tbody></table>
+  <p class="small">類似検索の母集団 = <code>status in ('reference','confirmed')</code> ／ LIKE = <code>note・rework・reason ILIKE</code> ／ 用紙系統 = <code>paper→papers.family</code> を JOIN。将来 <code>embedding</code> 列で意味検索。</p>
+
+  <h3>将来の拡張(受け皿だけ・今は作らない=S3)</h3>
+  <table><thead><tr><th>将来テーブル</th><th>対応S3機能</th></tr></thead><tbody>
+    <tr><td>estimate_items(見積明細: 刷り代/組版/型代)</td><td>見積書発行</td></tr>
+    <tr><td>assets(型・版・色データ)</td><td>「流用」の実体化(customer/job 紐付け)</td></tr>
+    <tr><td>inquiries(引合い)</td><td>メールからの条件抽出</td></tr>
+  </tbody></table>
+  <p class="small">estimates に <code>customer_id</code> を今入れてあるので、これらは後から<b>足すだけ</b>(既存データの作り直し不要)。</p>
+
+  <h2>4. 画面(すべて <code>/</code> 上のモーダル)</h2>
+  <p class="small">実装は<b>別ルートを作らず、すべて <code>/</code> のクライアントコンポーネント＋モーダル</b>に集約した(設計時の <code>/estimates/new</code> <code>/estimates</code> 案は不採用)。</p>
+  <table>
+    <thead><tr><th>画面</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>/</code>(本体)</td><td>見積ツール: 引合い条件 → 判定(自動見積対象外の5型)・叩き台・類似案件・手戻り注意・削減効果</td></tr>
+      <tr><td>登録/編集モーダル</td><td>過去見積を1件<b>登録</b>、既存を<b>編集</b>(同一フォーム、hidden <code>id</code> の有無で insert/update 分岐)。<b>成功後も閉じずメッセージ表示</b>、新規は連続入力用にフォーム初期化(B1)</td></tr>
+      <tr><td>一覧・削除モーダル</td><td>全件<b>照会</b>＋絞り込み、各行から<b>編集/削除</b>(削除はインライン確認)。更新・削除は即 revalidate で一覧反映</td></tr>
+      <tr><td>確定記録・語句検索</td><td><code>/</code> 内の開閉トグル「▸ 詳しく見る」内。語句検索は Neon へ ILIKE</td></tr>
+    </tbody>
+  </table>
+  <p class="small">現行の見せ方(初期は入力カードのみ→ボタンで結果表示、記録/検索はトグル内)は踏襲。</p>
+
+  <h2>5. 現行PoCから流用するロジック</h2>
+  <ul>
+    <li><b>スコアリング</b>(満点122点→100%正規化・種類一致必須)</li>
+    <li><b>自動見積対象外の判定(5型)</b> … 出典は各社公式一次(sources.C2-b.md)。画面に実リンク</li>
+    <li><b>叩き台</b>(同種の類似上位から単価中央値×数量スケール、組版=支給データ状態で加算、型版代)</li>
+    <li><b>削減効果</b>(時給2,631円・30分→15分)</li>
+  </ul>
+  <p class="small">これらは決定的な計算なので <code>lib/</code> の共通TS関数にし、DB問い合わせだけ Server Action に置く(推奨)。</p>
+
+  <h2>6. 段階(Phase)</h2>
+  <div class="phase">
+    <div class="pcard now"><h4>Phase 1(今回)</h4><ul>
+      <li>過去見積の登録・照会・編集・削除(CRUD)</li><li>LIKE検索(note / rework)</li><li>叩き台・判定・削減効果(現行流用)</li><li>確定金額の記録</li><li>36件シード投入</li><li>Vercel公開</li></ul></div>
+    <div class="pcard next"><h4>Phase 2(将来)</h4><ul>
+      <li><code>embedding</code>列(pgvector)追加</li><li>意味検索(語句→意味の近さ)</li><li>埋め込みは無料枠API(Gemini/Jina等)から。必要なら有料へ数行で差し替え</li><li>次元は最初に固定</li></ul></div>
+  </div>
+
+  <h2>7. デプロイの流れ(Phase 1)</h2>
+  <ol>
+    <li>GitHub に新規リポジトリ作成 → Next.js を push</li>
+    <li>Vercel で GitHub リポジトリを import(以後 <code>git push</code> で自動デプロイ)</li>
+    <li>Neon でDB作成 → 接続文字列を Vercel の環境変数に(サーバ限定)</li>
+    <li>Drizzle でマイグレーション(テーブル作成)→ 36件シード投入</li>
+    <li>公開URL発行</li>
+  </ol>
+
+  <h2>8. やらないこと(S3本体・原則を飛ばさない)</h2>
+  <ul>
+    <li class="no">認証 / 見積書PDF発行 / メール自動返信 / MIS連携 … S3本体なので今回は作らない</li>
+    <li class="no">冊子のページ数・固定費(版代/型代)の計算モデル化 … 適用範囲外</li>
+    <li class="no">意味検索 … Phase 2 へ(今回はLIKEまで)</li>
+  </ul>
+
+  <h2>9. 確定した設計判断(2026-07-27)</h2>
+  <ul class="check">
+    <li>① <b>DBスキーマ</b> = 3NF の3テーブル(customers / papers / estimates)。カテゴリ列は ENUM、加工は <code>text[]</code>、用紙は papers 辞書(paper→family の従属を排除)</li>
+    <li>② <b>計算の置き場所</b> = 共通TS関数＋DB問い合わせは Server Action</li>
+    <li>③ <b>id</b> = serial + 表示用 <code>code</code>。シードは E-001 を保持、<b>手動登録は <code>E-{id}</code> を自動採番</b>(D39)。削除で欠番は出るが id 一意ゆえコードも一意</li>
+    <li>④ <b>シード</b> = 現行の合成36件を estimates(status=reference)で投入</li>
+    <li>⑤ <b>GitHub</b> = 新規リポジトリ → Vercel 連携</li>
+  </ul>
+
+  <h2>10. 更新履歴</h2>
+  <ul class="check">
+    <li><b>2026-07-27</b>: 初版(設計・相談中)</li>
+    <li><b>2026-08-10</b>: Phase 1 実装完了に合わせ as-built 化。(1)照会/編集/削除を追加=フルCRUD(§1,§4)、(2)別ルート案 <code>/estimates*</code> は不採用→全て <code>/</code> 上のモーダルに集約(§4)、(3)手動登録の <code>code</code> 自動採番を明記(§3,§9)。関連: decisions.md D39 / bugs.md B1,B2</li>
+  </ul>
+</div>
+</body>
+</html>
