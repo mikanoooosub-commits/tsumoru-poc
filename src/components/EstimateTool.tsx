@@ -160,7 +160,8 @@ export default function EstimateTool({ estimates, papers }: { estimates: Estimat
           {!res ? (
             <div className="placeholder">左で条件を入れて「叩き台を作る」を押すと、判定・叩き台・類似案件がここに表示されます。</div>
           ) : (
-            <>
+            <div className="results">
+              <div className="rescol">
               {/* 判定 */}
               {res.detect.length ? (
                 <div className="detect ng">
@@ -210,7 +211,9 @@ export default function EstimateTool({ estimates, papers }: { estimates: Estimat
                   <div className="muted">→ 見積提示時にこれらを先に確認する(発注後の手戻りを防ぐ)。過去案件データがあって初めて出せる出力。</div>
                 </div>
               )}
+              </div>
 
+              <div className="rescol">
               {/* 類似案件 */}
               <div className="card">
                 <h2>根拠にした過去案件</h2>
@@ -267,7 +270,8 @@ export default function EstimateTool({ estimates, papers }: { estimates: Estimat
                 </table>
                 <p className="muted">削減 {sv.saveMin}分/件(=50%) を <code>年間コスト=削減時間×年間件数×時給2,631円</code> に当てると ― 年1,000件で約<b>{sv.y1000.toLocaleString()}円</b>、2,000件で約<b>{sv.y2000.toLocaleString()}円</b>、3,000件で約<b>{sv.y3000.toLocaleString()}円</b>の削減(仮)。時給のみ一次、件数・時間は仮=提案時に実測へ置換。</p>
               </div>
-            </>
+              </div>
+            </div>
           )}
         </div>
       </div>

@@ -70,7 +70,7 @@ body {
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
 }
-.wrap { max-width: 1060px; margin: 0 auto; padding: 28px 24px 72px; }
+.wrap { max-width: 1400px; margin: 0 auto; padding: 28px 28px 72px; }
 
 /* ── ヘッダー ── */
 .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-bottom: 22px; }
@@ -87,8 +87,13 @@ h1 { font-size: 1.3rem; margin: .2em 0; }
 .muted { color: var(--ink-3); font-size: .78rem; }
 
 /* ── レイアウト ── */
-.grid { display: grid; grid-template-columns: 336px 1fr; gap: 22px; align-items: start; }
+.grid { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 24px; align-items: start; }
 @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+
+/* 結果エリア: 広い画面では2カラムで画面幅を使う(左=判定/叩き台/手戻り, 右=類似/記録/削減) */
+.results { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+.rescol { min-width: 0; }
+@media (max-width: 1080px) { .results { grid-template-columns: 1fr; } }
 
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 18px 20px; box-shadow: var(--shadow); margin-bottom: 18px; }
 .card h2 { font-size: .98rem; font-weight: 600; margin: .1em 0 .9em; padding-bottom: .5em; border-bottom: 1px solid var(--line); }
