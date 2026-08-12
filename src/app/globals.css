@@ -131,7 +131,6 @@ button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-weak); 
 /* ── 判定 ── */
 .detect { border-radius: var(--r-card); padding: 14px 18px; margin-bottom: 18px; font-size: .87rem; border: 1px solid var(--line); background: var(--surface); }
 .detect.ng { background: var(--caution-bg); border-color: var(--caution-line); border-left: 3px solid var(--caution); border-radius: 0 var(--r-card) var(--r-card) 0; }
-.detect.ok { background: var(--surface); }
 .detect ul { margin: .5em 0; padding-left: 1.2em; } .detect li { margin: .4em 0; }
 .detect .src a { color: var(--accent); font-size: .78rem; }
 

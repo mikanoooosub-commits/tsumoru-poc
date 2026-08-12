@@ -162,8 +162,8 @@ export default function EstimateTool({ estimates, papers }: { estimates: Estimat
           ) : (
             <div className="results">
               <div className="rescol">
-              {/* 判定 */}
-              {res.detect.length ? (
+              {/* 判定(対象外の5型に該当したときだけ表示。範囲内=定型は何も出さない) */}
+              {res.detect.length > 0 && (
                 <div className="detect ng">
                   <b>▲ この案件はネット印刷の自動見積の対象外に該当します</b>
                   <ul>{res.detect.map((h, i) => (
@@ -174,11 +174,6 @@ export default function EstimateTool({ estimates, papers }: { estimates: Estimat
                     </li>
                   ))}</ul>
                   <div className="muted">→ 価格表では引けない案件。だから過去案件から引く価値がある。</div>
-                </div>
-              ) : (
-                <div className="detect ok">
-                  <b>この案件はネット印刷の自動見積の範囲内です(価格勝負になる領域)</b>
-                  <div className="muted">定型品はネット印刷が強い。ここでは価格で戦わず、&quot;対象外&quot;の変則案件に集中するのが地場の勝ち筋。</div>
                 </div>
               )}
 
