@@ -1,8 +1,8 @@
 # 見積支援PoC ― Next.js版 設計(SPEC)
 
-> ステータス: **Phase 1 実装済み(as-built)**。デプロイ(GitHub/Vercel)は未実施。
+> ステータス: **Phase 1 実装済み(as-built)・本番公開済み**(2026-08-11 に GitHub/Vercel へ公開。URL: https://tsumoru-poc-lovat.vercel.app/ 。手順・戻し方は [deploy-runbook.md](deploy-runbook.md))。
 > 現行の静的PoC(`poc/Poc.html`)を、登録・保存できるWebアプリにした。本書は実装に合わせた as-built。
-> 作成: 2026-07-27 / 最終更新: 2026-08-10 / 上位: scope.md / decisions.md(判断の経緯) / bugs.md(不具合)
+> 作成: 2026-07-27 / 最終更新: 2026-10-12 / 上位: scope.md / decisions.md(判断の経緯) / bugs.md(不具合)
 
 ## 1. 目的とスコープ
 
@@ -119,6 +119,8 @@
 
 ## 7. デプロイの流れ(Phase 1)
 
+> 以下は設計時の流れ。**2026-08-11 に実施済み**(実際の構成・手順・戻し方は [deploy-runbook.md](deploy-runbook.md))。
+
 1. GitHub に新規リポジトリ作成 → Next.js プロジェクトを push
 2. Vercel で GitHub リポジトリを import(以後 `git push` で自動デプロイ)
 3. Neon でDB作成 → 接続文字列を Vercel の環境変数に登録(サーバ限定)
@@ -143,3 +145,4 @@
 
 - **2026-07-27**: 初版(設計・相談中)。
 - **2026-08-10**: Phase 1 実装完了に合わせ as-built 化。(1)照会/編集/削除を追加=フルCRUD(§1,§4)、(2)別ルート案 `/estimates*` は不採用→全て `/` 上のモーダルに集約(§4)、(3)手動登録の `code` 自動採番を明記(§3,§9)。関連: decisions.md D39 / bugs.md B1,B2。
+- **2026-10-12**: 公開状態の記述のみ修正(冒頭ステータス・§7 注記)。2026-08-11 に本番公開済みで、「デプロイは未実施」は実態と不一致だった。他の節は変更なし。関連: change-log.md CHANGE-P-010 / issue-log.md ISSUE-P-004。
