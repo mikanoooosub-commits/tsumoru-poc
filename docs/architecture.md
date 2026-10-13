@@ -41,7 +41,7 @@ flowchart LR
 | 類似検索・叩き台 | **ブラウザ内**で `rank()` → `detect()` → `buildDraft()`(`lib/scoring.ts`)。DBには問い合わせない | 母集団は表示時に渡された estimates 全件(status=reference/confirmed)。件数が増えると全件がブラウザに載る【推測: 38件では問題なし】 |
 | 登録・更新 | フォーム → `onSaveSubmit` → `saveEstimate(null, FormData)`(Server Action) → `parseForm` で検証 → insert/update → `revalidatePath('/')` | hidden `id` の有無で分岐。成功後もダイアログは閉じない(B1) |
 | 削除 | 一覧のインライン確認「はい」→ `deleteEstimate(id)` → `revalidatePath('/')` | 物理削除 |
-| 語句検索 | `searchMemos(kw)` → `note`/`rework`/`reason` を ILIKE、先頭20件 | `/` 内の「詳しく見る」トグル |
+| 語句検索 | `searchMemos(kw)` → `note`/`rework`/`reason` を ILIKE、先頭20件 | `/` の常時表示の帯(WO-009 で折りたたみを廃止) |
 | 確定金額の記録 | 「記録」→ `recordFinalAmount(input)`(Server Action) → 入力を1つずつ検証 → **叩き台をサーバーで再計算** → `estimates` に新しい行を insert(`status='draft'`・`source='tool'`・`cost=0`=原価未入力)→ `code` 付与 → `revalidatePath('/')` | 母集団(reference/confirmed)・一覧には入らない。再読み込み後は `getToolRecords()` の直近10件を記録欄に表示。誤記録は記録欄の「削除」(確認つき)で消せる → [ISSUE-P-005](issue-log.md)(対応済) |
 
 ## 3. Server Action・クエリ一覧
@@ -86,7 +86,8 @@ ENUM(7種): `estimate_status`(reference/draft/confirmed/issued) / `estimate_sour
 | パス | 役割 |
 |---|---|
 | `src/app/page.tsx` | `/` の Server Component。データ取得して `EstimateTool` へ |
-| `src/app/layout.tsx` / `globals.css` | 共通レイアウト(`lang="ja"`、Geist フォント)・スタイル |
+| `src/app/layout.tsx` / `globals.css` | 共通レイアウト(`lang="ja"`)・スタイル。色・文字・余白は `globals.css` の `:root` の変数の1か所(DESIGN-SYSTEM.md)。Geist フォントは使わない |
+| `src/app/error.tsx` / `not-found.tsx` | 想定外のエラー・存在しないページの日本語の画面 |
 | `src/app/actions.ts` | Server Actions(§3) |
 | `src/lib/input.ts` | 入力の厳密な解釈(`strictInt`・`INT4_MAX`・`escapeLike`)。`'use server'` ファイルには非同期関数しか置けないため分離 |
 | `scripts/db-snapshot.ts` | DB の控え取り(`dump`)と突き合わせ(`diff`)。**読み取り専用**。書込み試験の前後で使う |

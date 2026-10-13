@@ -172,7 +172,7 @@ export function buildDraft(basis: Scored[], q: Query): Draft | null {
     leadEst: median(basis.map((t) => t.r.leadDays ?? 0)),
     baseUnit,
     basisIds: basis.map((t) => t.r.code ?? String(t.r.id)),
-    katagata: q.reuse === '前回流用可' ? '¥0（既存型・版を流用）' : '別途（このモデルには未計上）',
+    katagata: q.reuse === '前回流用可' ? '¥0（既存型・版を流用）' : '別途（叩き台には含みません）',
   };
 }
 

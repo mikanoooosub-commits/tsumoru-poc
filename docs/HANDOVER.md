@@ -9,7 +9,7 @@
 - 構成: Next.js 16 + Neon(Postgres)+ Drizzle + Vercel。認証なし。データは合成(仮)36件+登録分(現在38件)。
 
 ## 2. 読む順番
-1. [SPEC.md](SPEC.md) — 設計と判断(as-built)
+1. [SPEC.md](SPEC.md) — 設計と判断(as-built)。画面の決まりは [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md)・点検の記録は [design-audit.md](design-audit.md)
 2. [architecture.md](architecture.md) — 構成図・Server Action・テーブル
 3. [issue-log.md](issue-log.md) / [change-log.md](change-log.md) — 不具合と変更の履歴
 4. [test-scenarios.md](test-scenarios.md) — 何をどこまで確認したか(スクショは `screenshots/`)
@@ -21,6 +21,7 @@
 - Phase 1: 過去見積の登録・一覧・編集・削除、語句検索(ILIKE)、類似検索→叩き台、対象外5型判定(出典リンク付き)、確定金額の記録(WO-003 でDB保存に変更)。36件シード。Vercel 公開。
 - 不具合3件を修正(B1 登録後ダイアログ / B2 コード自動採番 / B3 Vercel のクォート)。
 - WO-002 で as-built ドキュメント6点+画面確認(スクショ12枚)を整備。`docs/SPEC.md` の公開状態の記述を修正。
+- WO-009(2026-10-13): 画面を印刷版デザインシステムに整備(DESIGN-SYSTEM.md・design-audit.md)。記録・メモ検索を常時表示に。機能・計算・DBは変更なし。
 - WO-003(2026-10-13): 確定金額をDBに保存(P-005。スキーマ変更なし。新しい行を `status='draft'`・`source='tool'`・`cost=0`=原価未入力で insert)。書込み系の画面確認(T-08b・T-13〜T-16・T-20)を実施。P-003 再発防止・P-007/008/009/011 を修正、spec.html 修正。DBの控えと突き合わせツール `scripts/db-snapshot.ts` を追加。
 
 ## 4. やらなかったこと(意図的)

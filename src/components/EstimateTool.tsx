@@ -20,14 +20,29 @@ const DEFAULT_PAPER = 'コート90';
 
 const codeOf = (r: { code: string | null; id: number }) => r.code ?? `#${r.id}`;
 
+// 「仮」の印(design-tokens §2.5)。色だけでなく字で示す
+const Kari = () => <span className="kari">仮</span>;
+
+// 結果メッセージ(記号+文字。成功は status、失敗は alert として読み上げられる)
+function Msg({ m }: { m: FormState }) {
+  if (!m) return null;
+  return (
+    <p className={`msg ${m.ok ? 'ok' : 'ng'}`} role={m.ok ? 'status' : 'alert'}>
+      <span aria-hidden="true">{m.ok ? '✓' : '!'}</span>
+      <span>{m.ok ? '' : 'エラー: '}{m.message}</span>
+    </p>
+  );
+}
+
 export default function EstimateTool({ estimates, papers, records }: { estimates: EstimateRow[]; papers: Paper[]; records: ToolRecord[] }) {
   const paperFamily = new Map(papers.map((p) => [p.name, p.family]));
   const paperNames = papers.map((p) => p.name);
+  const defaultPaper = paperNames.includes(DEFAULT_PAPER) ? DEFAULT_PAPER : (paperNames[0] ?? '');
 
   // ── 入力 ──
   const [type, setType] = useState(TYPES[0]);
   const [size, setSize] = useState(SIZES[0]);
-  const [paper, setPaper] = useState(paperNames.includes(DEFAULT_PAPER) ? DEFAULT_PAPER : (paperNames[0] ?? ''));
+  const [paper, setPaper] = useState(defaultPaper);
   const [color, setColor] = useState(COLORS[0]);
   const [qty, setQty] = useState('3000');
   const [fin, setFin] = useState<string[]>([]);
@@ -76,6 +91,7 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [deleting, startDelete] = useTransition();
   const [listMsg, setListMsg] = useState<FormState>(null);
+  const [recMsg, setRecMsg] = useState<FormState>(null);
   function openList() { setListMsg(null); setFilter(''); setDeletingId(null); listRef.current?.showModal(); }
   function doDelete(id: number, fromRecords = false) {
     startDelete(async () => {
@@ -90,6 +106,15 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
     return (`${r.name} ${r.type} ${r.size} ${codeOf(r)}`).includes(q);
   });
 
+  // 削除の確認(その場に出す。何を消すかを書き、動詞のボタンにする)
+  const deleteConfirm = (id: number, label: string, fromRecords = false) => (
+    <>
+      <span className="confirm">{label} を削除しますか?</span>
+      <button type="button" className="btn text danger" disabled={deleting} onClick={() => doDelete(id, fromRecords)}>{deleting ? '削除中…' : '削除する'}</button>
+      <button type="button" className="btn text" onClick={() => setDeletingId(null)}>やめる</button>
+    </>
+  );
+
   // ── メモ検索(DBのILIKE) ──
   const [kw, setKw] = useState('');
   const [searchRes, setSearchRes] = useState<MemoRow[] | null>(null);
@@ -100,10 +125,10 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
   // 送るのは検索時点の条件と確定金額・理由だけ。叩き台はサーバーが条件から再計算して保存する。
   const [recAmount, setRecAmount] = useState('');
   const [recReason, setRecReason] = useState('');
-  const [recMsg, setRecMsg] = useState<FormState>(null);
   const [recording, startRecord] = useTransition();
+  const canRecord = !!res?.draft;
   function record() {
-    if (!res) return;
+    if (!res || !res.draft) return;
     if (!/^\d+$/.test(recAmount.trim())) { setRecMsg({ ok: false, message: '確定金額は数字(円)で入力してください' }); return; }
     const amount = Number(recAmount.trim());
     startRecord(async () => {
@@ -132,261 +157,277 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
             </svg>
           </span>
           <div>
-            <div className="brandname">つもる</div>
+            <h1>つもる</h1>
             <div className="tagline">過去案件から引く、見積の下書き</div>
           </div>
         </div>
         <div className="ctx">
-          <span className="pill warn">⚠ 合成(仮)データ・金額は例示</span>
-          <span className="pill">対象: チラシ・DM・名刺・ポスター等の定型</span>
-          <span className="pill">Neon 全{estimates.length}件</span>
+          <span className="chip line"><Kari /> 合成データ・金額は例示</span>
+          <span className="chip line">対象: チラシ・DM・名刺・ポスター等の定型</span>
+          <span className="chip line">登録済み {estimates.length}件</span>
         </div>
       </header>
 
-      <div className="grid">
+      <main className="grid">
         {/* 入力 */}
-        <div className="card">
-          <h2>引合いの条件</h2>
-          <label>種類</label>
-          <select value={type} onChange={(e) => setType(e.target.value)}>{TYPES.map((v) => <option key={v}>{v}</option>)}</select>
-          <label>サイズ</label>
-          <select value={size} onChange={(e) => setSize(e.target.value)}>{SIZES.map((v) => <option key={v}>{v}</option>)}</select>
-          <label>用紙 <span className="muted">(系統でスコア)</span></label>
-          <select value={paper} onChange={(e) => setPaper(e.target.value)}>{papers.map((p) => <option key={p.name} value={p.name}>{p.name}（{p.family}）</option>)}</select>
-          <label>色</label>
-          <select value={color} onChange={(e) => setColor(e.target.value)}>{COLORS.map((v) => <option key={v}>{v}</option>)}</select>
-          <label>数量(部・枚)</label>
-          <input type="number" value={qty} min={1} step={100} onChange={(e) => setQty(e.target.value)} />
-          <label>加工</label>
-          <div className="fin">{FINS.map((v) => (
-            <label key={v}><input type="checkbox" checked={fin.includes(v)} onChange={() => toggleFin(v)} />{v}</label>
-          ))}</div>
-          <label>支給データの状態 <span className="muted">(データがそのまま使えるか)</span></label>
-          <select value={ds} onChange={(e) => setDs(e.target.value)}>{DATA_STATES.map((v) => <option key={v}>{v}</option>)}</select>
-          <label>型・版・色の流用 <span className="muted">(地場の自社資産)</span></label>
-          <select value={reuse} onChange={(e) => setReuse(e.target.value)}>{REUSES.map((v) => <option key={v}>{v}</option>)}</select>
-          <button onClick={run}>類似案件を検索して叩き台を作る</button>
-          <div style={{ marginTop: 12, textAlign: 'center' }} className="toolbar">
-            <button className="linkbtn" onClick={openCreate}>＋ 過去見積を登録する</button>
-            <span className="muted"> ・ </span>
-            <button className="linkbtn" onClick={openList}>📋 過去見積の一覧・編集</button>
+        <section className="card" aria-labelledby="h-input">
+          <h2 id="h-input">引合いの条件</h2>
+          <label className="field"><span className="lbl">種類</span>
+            <select value={type} onChange={(e) => setType(e.target.value)}>{TYPES.map((v) => <option key={v}>{v}</option>)}</select></label>
+          <label className="field"><span className="lbl">サイズ</span>
+            <select value={size} onChange={(e) => setSize(e.target.value)}>{SIZES.map((v) => <option key={v}>{v}</option>)}</select></label>
+          <label className="field"><span className="lbl">用紙 <span className="hint">(系統でスコア)</span></span>
+            <select value={paper} onChange={(e) => setPaper(e.target.value)}>{papers.map((p) => <option key={p.name} value={p.name}>{p.name}（{p.family}）</option>)}</select></label>
+          <label className="field"><span className="lbl">色</span>
+            <select value={color} onChange={(e) => setColor(e.target.value)}>{COLORS.map((v) => <option key={v}>{v}</option>)}</select></label>
+          <label className="field"><span className="lbl">数量(部・枚)</span>
+            <input type="number" inputMode="numeric" value={qty} min={1} step={100} onChange={(e) => setQty(e.target.value)} /></label>
+          <fieldset>
+            <legend>加工</legend>
+            <div className="checks">{FINS.map((v) => (
+              <label className="check" key={v}><input type="checkbox" checked={fin.includes(v)} onChange={() => toggleFin(v)} />{v}</label>
+            ))}</div>
+          </fieldset>
+          <label className="field"><span className="lbl">支給データの状態 <span className="hint">(データがそのまま使えるか)</span></span>
+            <select value={ds} onChange={(e) => setDs(e.target.value)}>{DATA_STATES.map((v) => <option key={v}>{v}</option>)}</select></label>
+          <label className="field"><span className="lbl">型・版・色の流用 <span className="hint">(地場の自社資産)</span></span>
+            <select value={reuse} onChange={(e) => setReuse(e.target.value)}>{REUSES.map((v) => <option key={v}>{v}</option>)}</select></label>
+          <button type="button" className="btn primary block" onClick={run}>類似案件を検索して叩き台を作る</button>
+          <div className="btn-row">
+            <button type="button" className="btn secondary" onClick={openCreate}>過去見積を登録する</button>
+            <button type="button" className="btn secondary" onClick={openList}>過去見積の一覧・編集</button>
           </div>
-        </div>
+        </section>
 
-        {/* 結果 */}
         <div>
+          {/* 結果 */}
           {!res ? (
             <div className="placeholder">左で条件を入れて「叩き台を作る」を押すと、判定・叩き台・類似案件がここに表示されます。</div>
           ) : (
             <div className="results">
               <div className="rescol">
-              {/* 判定(対象外の5型に該当したときだけ表示。範囲内=定型は何も出さない) */}
-              {res.detect.length > 0 && (
-                <div className="detect ng">
-                  <b>▲ この案件はネット印刷の自動見積の対象外に該当します</b>
-                  <ul>{res.detect.map((h, i) => (
-                    <li key={i}><b>{h.t}</b> … {h.d}<br />
-                      <span className="src">{h.links.map(([label, url], j) => (
-                        <span key={j}>{j > 0 ? ' ／ ' : ''}<a href={url} target="_blank" rel="noreferrer">{label}</a></span>
-                      ))}</span>
-                    </li>
-                  ))}</ul>
-                  <div className="muted">→ 価格表では引けない案件。だから過去案件から引く価値がある。</div>
-                </div>
-              )}
+                {/* 判定(対象外の5型に該当したときだけ表示。範囲内=定型は何も出さない) */}
+                {res.detect.length > 0 && (
+                  <section className="notice" aria-labelledby="h-detect">
+                    <b className="label" id="h-detect">▲ この案件はネット印刷の自動見積の対象外に該当します</b>
+                    <ul>{res.detect.map((h, i) => (
+                      <li key={i}><b>{h.t}</b> … {h.d}<br />
+                        <span className="src">{h.links.map(([label, url], j) => (
+                          <span key={j}>{j > 0 ? ' ／ ' : ''}<a href={url} target="_blank" rel="noreferrer">{label}</a></span>
+                        ))}</span>
+                      </li>
+                    ))}</ul>
+                    <div className="after">価格表では出せない案件です。過去の案件から金額の目安を出せます。</div>
+                  </section>
+                )}
 
-              {/* 叩き台 */}
-              {res.draft && (
-                <div className="draft">
-                  <h2>見積の叩き台(自動生成・要確認)</h2>
-                  <div className="big">{yen(res.draft.amount)} <span className="pill">税抜・概算</span></div>
-                  <div className="uchiwake">
-                    {res.draft.dtpH > 0
-                      ? <>刷り代 {yen(res.draft.suri)} ＋ 組版 {yen(res.draft.kumihan)}（DTP {res.draft.dtpH.toFixed(1)}h・仮）＝ <b>{yen(res.draft.amount)}</b></>
-                      : <>刷り代 {yen(res.draft.suri)}（組版 ¥0・支給データ完全）＝ <b>{yen(res.draft.amount)}</b></>}
-                  </div>
-                  <dl className="kv">
-                    <dt>推定単価(刷り代)</dt><dd>{res.draft.unitEst.toFixed(1)} 円/部 <span className="muted">(同種の類似レンジ {res.draft.uMin.toFixed(1)}〜{res.draft.uMax.toFixed(1)} 円/部)</span></dd>
-                    <dt>数量</dt><dd>{res.q.qty.toLocaleString()} 部</dd>
-                    <dt>組版(DTP)</dt><dd>{res.draft.dtpH > 0 ? `+${res.draft.dtpH.toFixed(1)}h = ${yen(res.draft.kumihan)}（支給データ=${res.q.dataState}・仮ルール）` : '+0h（完全データ）'}</dd>
-                    <dt>想定粗利率</dt><dd>{res.draft.marginEst.toFixed(0)} % <span className="muted">(刷り代ベース・参考)</span></dd>
-                    <dt>推奨納期</dt><dd>約 {res.draft.leadEst} 営業日</dd>
-                    <dt>型・版代</dt><dd>{res.draft.katagata}</dd>
-                  </dl>
-                  <div className="basis"><b>価格根拠</b>: <b>同種</b>の類似上位 <b>{res.basis.length}</b> 件({res.draft.basisIds.join(', ')})の単価中央値 <b>{res.draft.baseUnit.toFixed(1)}円/部</b> を基準に、数量差で {res.draft.scalePct >= 0 ? '+' : ''}{res.draft.scalePct.toFixed(0)}% 調整(仮ルール)。<br /><span className="muted">※叩き台です。特殊仕様・原価変動・客先事情は担当者が最終調整してください。</span></div>
-                </div>
-              )}
+                {/* 叩き台 */}
+                {res.draft && (
+                  <section className="draft" aria-labelledby="h-draft">
+                    <h2 id="h-draft">見積の叩き台</h2>
+                    <div className="big">{yen(res.draft.amount)} <span className="chip">税抜・概算</span></div>
+                    <div className="uchiwake">
+                      {res.draft.dtpH > 0
+                        ? <>刷り代 {yen(res.draft.suri)} ＋ 組版 {yen(res.draft.kumihan)}（DTP {res.draft.dtpH.toFixed(1)}h・<Kari />）＝ <b>{yen(res.draft.amount)}</b></>
+                        : <>刷り代 {yen(res.draft.suri)}（組版 ¥0・支給データ完全）＝ <b>{yen(res.draft.amount)}</b></>}
+                    </div>
+                    <dl className="kv">
+                      <dt>推定単価(刷り代)</dt><dd>{res.draft.unitEst.toFixed(1)} 円/部 <span className="hint">(同種の類似レンジ {res.draft.uMin.toFixed(1)}〜{res.draft.uMax.toFixed(1)} 円/部)</span></dd>
+                      <dt>数量</dt><dd>{res.q.qty.toLocaleString()} 部</dd>
+                      <dt>組版(DTP)</dt><dd>{res.draft.dtpH > 0 ? <>+{res.draft.dtpH.toFixed(1)}h = {yen(res.draft.kumihan)}（支給データ={res.q.dataState}・<Kari />ルール）</> : '+0h（完全データ）'}</dd>
+                      <dt>想定粗利率</dt><dd>{res.draft.marginEst.toFixed(0)} % <span className="hint">(刷り代ベース・参考)</span></dd>
+                      <dt>推奨納期</dt><dd>約 {res.draft.leadEst} 営業日</dd>
+                      <dt>型・版代</dt><dd>{res.draft.katagata}</dd>
+                    </dl>
+                    <div className="basis"><b>価格根拠</b>: <b>同種</b>の類似上位 <b>{res.basis.length}</b> 件({res.draft.basisIds.join(', ')})の単価中央値 <b>{res.draft.baseUnit.toFixed(1)}円/部</b> を基準に、数量差で {res.draft.scalePct >= 0 ? '+' : ''}{res.draft.scalePct.toFixed(0)}% 調整(<Kari />ルール)。<br />叩き台です。特殊仕様・原価の変動・お客様の事情を見て、金額を調整してください。</div>
+                  </section>
+                )}
 
-              {/* 手戻り注意 */}
-              {notesRows.length > 0 && (
-                <div className="notes"><b>▲ この案件で注意すべき点(採用した同種の類似案件で発生した手戻り)</b>
-                  <ul>{notesRows.map((t) => <li key={t.r.id}>{codeOf(t.r)} {t.r.name} … {t.r.rework}</li>)}</ul>
-                  <div className="muted">→ 見積提示時にこれらを先に確認する(発注後の手戻りを防ぐ)。過去案件データがあって初めて出せる出力。</div>
-                </div>
-              )}
+                {/* 手戻り注意 */}
+                {notesRows.length > 0 && (
+                  <section className="notice" aria-labelledby="h-notes">
+                    <b className="label" id="h-notes">▲ この案件で注意すべき点(採用した同種の類似案件で発生した手戻り)</b>
+                    <ul>{notesRows.map((t) => <li key={t.r.id}>{codeOf(t.r)} {t.r.name} … {t.r.rework}</li>)}</ul>
+                    <div className="after">見積を出す前に、これらを先に確認すると、受注後の手戻りを防げます。</div>
+                  </section>
+                )}
               </div>
 
               <div className="rescol">
-              {/* 類似案件 */}
-              <div className="card">
-                <h2>根拠にした過去案件</h2>
-                {res.basis.length ? res.basis.map((t) => (
-                  <div className="match" key={t.r.id}>
-                    <div className="top"><span className="nm">{t.r.name} <span className="muted">({codeOf(t.r)})</span></span><span className="score">類似度 {t.pct}%</span></div>
-                    <div className="bar"><i style={{ width: `${t.pct}%` }} /></div>
-                    <div className="specs">{t.r.type} / {t.r.size} / {t.r.paper ?? '-'} / {t.r.color} / {t.r.qty.toLocaleString()}部 / {t.r.finishing.length ? t.r.finishing.join('・') : '加工なし'} / {t.r.dataState} / {t.r.reuse} … 単価 <b>{unitOf(t.r).toFixed(1)}円</b>・粗利 {marginOf(t.r).toFixed(0)}%・納期{t.r.leadDays ?? '-'}日{t.r.rework ? <><br /><span className="rw">▲手戻り: {t.r.rework}</span></> : null}</div>
-                    <div className="chips">{t.why.map(([k, v], i) => <span key={i} className={`chip ${v ? '' : 'no'}`}>{v ? '✓' : '×'} {k}</span>)}</div>
-                  </div>
-                )) : <div className="placeholder">同種の類似案件が見つかりませんでした。</div>}
-              </div>
-
-              {/* 詳しく見る: 検索・記録 */}
-              <details className="more">
-                <summary>▸ 詳しく見る(記録と検索)</summary>
-                <div className="card">
-                  <h2>過去のメモを検索</h2>
-                  <div className="inline">
-                    <input type="text" value={kw} placeholder="塗り足し / 色合わせ / 特色番号 / 型がずれた …" onChange={(e) => setKw(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && onSearch()} />
-                    <button onClick={onSearch} disabled={isSearching}>{isSearching ? '検索中…' : '🔍 検索'}</button>
-                  </div>
-                  {searchRes && (searchRes.length ? (
-                    <div style={{ marginTop: 8 }}>
-                      {searchRes.map((r) => <div className="sres" key={r.id}>▸ <b>{codeOf(r)} {r.name}</b> … {r.source === 'tool'
-                        ? <>確定 {yen(r.amount)}{r.draftAmount !== null ? `(叩き台 ${yen(r.draftAmount)})` : ''} … 補正理由: {r.reason}<span className="muted">【つもる記録】</span></>
-                        : (r.rework || r.note || r.reason)}</div>)}
-                      <div className="muted" style={{ marginTop: 6 }}>※属性は違っても「見積時に確認すべき理由」が近い案件を拾える(DBの部分一致検索)。</div>
+                {/* 類似案件 */}
+                <section className="card" aria-labelledby="h-basis">
+                  <h2 id="h-basis">根拠にした過去案件</h2>
+                  {res.basis.length ? res.basis.map((t) => (
+                    <div className="match" key={t.r.id}>
+                      <div className="top"><span className="nm">{t.r.name} <span className="hint">({codeOf(t.r)})</span></span><span className="score">類似度 {t.pct}%</span></div>
+                      <div className="bar" aria-hidden="true"><i style={{ width: `${t.pct}%` }} /></div>
+                      <div className="specs">{t.r.type} / {t.r.size} / {t.r.paper ?? '-'} / {t.r.color} / {t.r.qty.toLocaleString()}部 / {t.r.finishing.length ? t.r.finishing.join('・') : '加工なし'} / {t.r.dataState} / {t.r.reuse} … 単価 <b>{unitOf(t.r).toFixed(1)}円</b>・粗利 {marginOf(t.r).toFixed(0)}%・納期{t.r.leadDays ?? '-'}日{t.r.rework ? <><br /><span className="rw">▲手戻り: {t.r.rework}</span></> : null}</div>
+                      <div className="chips">{t.why.map(([k, v], i) => <span key={i} className={`chip ${v ? 'good' : 'no'}`}>{v ? '✓' : '×'} {k}</span>)}</div>
                     </div>
-                  ) : <p className="muted" style={{ marginTop: 8 }}>「{kw}」に一致するメモ・手戻り事由は見つかりませんでした。</p>)}
-                </div>
-                <div className="card">
-                  <h2>確定金額を記録する <span className="muted">(DBに保存・叩き台との差を後で見る)</span></h2>
-                  <div className="inline">
-                    <div><label style={{ margin: '0 0 .2em' }}>確定金額(円)</label><input type="number" value={recAmount} style={{ width: 140 }} placeholder="31000" onChange={(e) => setRecAmount(e.target.value)} /></div>
-                    <div style={{ flex: 1, minWidth: 180 }}><label style={{ margin: '0 0 .2em' }}>補正理由(自由記述)</label><input type="text" value={recReason} placeholder="特殊紙の歩留まりを見て上げた 等" onChange={(e) => setRecReason(e.target.value)} /></div>
-                    <button onClick={record} disabled={recording}>{recording ? '記録中…' : '記録'}</button>
-                  </div>
-                  {recMsg && <p className={recMsg.ok ? 'msg-ok' : 'msg-ng'} role="status" style={{ marginTop: 8 }}>{recMsg.message}</p>}
-                  {records.length > 0 && (
-                    <div><div className="hist-hd">── 記録(新しい順・直近{records.length}件) ──</div>
-                      {records.map((h) => {
-                        const diff = h.draftAmount ? ((h.amount - h.draftAmount) / h.draftAmount) * 100 : null;
-                        return (
-                          <div className="hrow" key={h.id}>
-                            {h.code ?? `#${h.id}`} 叩き台 {h.draftAmount !== null ? yen(h.draftAmount) : '-'} → 確定 <b>{yen(h.amount)}</b>
-                            {diff !== null && <>（{diff >= 0 ? '+' : ''}{diff.toFixed(1)}%）</>} 理由: {h.reason || '(理由なし)'}
-                            {deletingId === h.id ? (
-                              <span className="muted"> 削除?
-                                <button className="linkbtn danger" style={{ marginLeft: 6 }} disabled={deleting} onClick={() => doDelete(h.id, true)}>はい</button>
-                                <button className="linkbtn" style={{ marginLeft: 6 }} onClick={() => setDeletingId(null)}>やめる</button>
-                              </span>
-                            ) : (
-                              <button className="linkbtn danger" style={{ marginLeft: 8 }} onClick={() => setDeletingId(h.id)}>削除</button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </details>
-
-              {/* 削減効果 */}
-              <div className="card beforeafter">
-                <h2>削減効果</h2>
-                <table>
-                  <tbody>
-                    <tr><th></th><th>従来(ベテランの記憶＋手計算)</th><th>本ツール</th></tr>
-                    <tr><td>1件の見積作成</td><td>約{sv.before}分(仮・§6基準ケース)</td><td><b>約{sv.after}分</b>(類似提示＋叩き台)</td></tr>
-                    <tr><td>価格の根拠</td><td>担当者の頭の中(属人的)</td><td><b>過去案件で提示</b>(誰でも引ける)</td></tr>
-                  </tbody>
-                </table>
-                <p className="muted">削減 {sv.saveMin}分/件(=50%) を <code>年間コスト=削減時間×年間件数×時給2,631円</code> に当てると ― 年1,000件で約<b>{sv.y1000.toLocaleString()}円</b>、2,000件で約<b>{sv.y2000.toLocaleString()}円</b>、3,000件で約<b>{sv.y3000.toLocaleString()}円</b>の削減(仮)。時給のみ一次、件数・時間は仮=提案時に実測へ置換。</p>
-              </div>
+                  )) : <div className="placeholder">同種の類似案件が見つかりませんでした。</div>}
+                </section>
               </div>
             </div>
           )}
+
+          {/* 記録と検索(結果の有無に関わらず常に表示) */}
+          <div className="band">
+            <section className="card" aria-labelledby="h-rec">
+              <h2 id="h-rec">確定金額の記録</h2>
+              {canRecord && res?.draft ? (
+                <p className="rec-target">記録先: {res.q.type} / {res.q.size} / {resPaper} / {res.q.color} / {res.q.qty.toLocaleString()}部 ・ 叩き台 <b className="num">{yen(res.draft.amount)}</b></p>
+              ) : (
+                <p className="rec-note" id="rec-why">
+                  {res ? '類似案件がなく叩き台が出ていないため、記録できません。' : '条件を入れて「叩き台を作る」を押すと、確定金額を記録できます。'}
+                </p>
+              )}
+              <div className="rec-form">
+                <label className="field"><span className="lbl">確定金額(円)</span>
+                  <input type="number" inputMode="numeric" min={1} value={recAmount} disabled={!canRecord} aria-describedby={canRecord ? undefined : 'rec-why'} placeholder="31000" onChange={(e) => setRecAmount(e.target.value)} /></label>
+                <label className="field"><span className="lbl">補正理由 <span className="hint">(自由記述)</span></span>
+                  <input type="text" value={recReason} disabled={!canRecord} aria-describedby={canRecord ? undefined : 'rec-why'} placeholder="特殊紙の歩留まりを見て上げた 等" onChange={(e) => setRecReason(e.target.value)} /></label>
+                <button type="button" className="btn secondary" onClick={record} disabled={!canRecord || recording}>{recording ? '記録中…' : '確定金額を記録する'}</button>
+              </div>
+              <Msg m={recMsg} />
+              <h3 className="hist-hd">保存済みの記録{records.length > 0 && <span className="hint"> (新しい順・直近{records.length}件)</span>}</h3>
+              {records.length === 0 ? (
+                <p className="hint">まだ記録がありません。確定金額を記録すると、叩き台との差がここに残ります。</p>
+              ) : records.map((h) => {
+                const diff = h.draftAmount ? ((h.amount - h.draftAmount) / h.draftAmount) * 100 : null;
+                const label = h.code ?? `#${h.id}`;
+                return (
+                  <div className="hrow" key={h.id}>
+                    <div>{label} ・ 叩き台 <span className="num">{h.draftAmount !== null ? yen(h.draftAmount) : '-'}</span> → 確定 <span className="amt num">{yen(h.amount)}</span>
+                      {diff !== null && <span className="num">（{diff >= 0 ? '+' : ''}{diff.toFixed(1)}%）</span>}</div>
+                    <div className="why">理由: {h.reason || '(理由なし)'}</div>
+                    <div className="hrow-acts">
+                      {deletingId === h.id
+                        ? deleteConfirm(h.id, label, true)
+                        : <button type="button" className="btn text danger" onClick={() => setDeletingId(h.id)}>{label} を削除する</button>}
+                    </div>
+                  </div>
+                );
+              })}
+            </section>
+
+            <section className="card" aria-labelledby="h-memo">
+              <h2 id="h-memo">過去のメモを検索</h2>
+              <div className="inline">
+                <label className="field grow"><span className="lbl">検索する語</span>
+                  <input type="text" value={kw} placeholder="塗り足し / 色合わせ / 特色番号 / 型がずれた …" onChange={(e) => setKw(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && onSearch()} /></label>
+                <button type="button" className="btn secondary" onClick={onSearch} disabled={isSearching}>{isSearching ? '検索中…' : 'メモを検索する'}</button>
+              </div>
+              {searchRes && (searchRes.length ? (
+                <div>
+                  {searchRes.map((r) => <div className="sres" key={r.id}><b>{codeOf(r)} {r.name}</b> … {r.source === 'tool'
+                    ? <>確定 <span className="num">{yen(r.amount)}</span>{r.draftAmount !== null ? <>(叩き台 <span className="num">{yen(r.draftAmount)}</span>)</> : ''} … 補正理由: {r.reason} <span className="chip">つもる記録</span></>
+                    : (r.rework || r.note || r.reason)}</div>)}
+                  <p className="hint">属性が違っても、見積のときに確認すべき理由が近い案件を探せます(部分一致の検索)。</p>
+                </div>
+              ) : <p className="hint">「{kw}」に一致するメモ・手戻り事由は見つかりませんでした。</p>)}
+            </section>
+          </div>
+
+          {/* 削減効果 */}
+          {res && (
+            <section className="card beforeafter after-band" aria-labelledby="h-save">
+              <h2 id="h-save">削減効果</h2>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th scope="col">項目</th><th scope="col">従来(ベテランの記憶＋手計算)</th><th scope="col">本ツール</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><th scope="row">1件の見積作成</th><td>約{sv.before}分 <Kari /></td><td><b>約{sv.after}分</b> <Kari />(類似提示＋叩き台)</td></tr>
+                    <tr><th scope="row">価格の根拠</th><td>担当者の頭の中(属人的)</td><td><b>過去案件で提示</b>(誰でも引ける)</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>削減 {sv.saveMin}分/件(=50%) を <code>年間コスト=削減時間×年間件数×時給2,631円</code> に当てると、年1,000件で約<b className="num">{sv.y1000.toLocaleString()}円</b>、2,000件で約<b className="num">{sv.y2000.toLocaleString()}円</b>、3,000件で約<b className="num">{sv.y3000.toLocaleString()}円</b>の削減です <Kari />。時給のみ一次データで、件数・時間は仮です。提案時に実測へ置き換えます。</p>
+            </section>
+          )}
         </div>
-      </div>
+      </main>
 
       <div className="foot">
-        仕組み: 引合いの特徴を過去見積と重み付きで突き合わせ(満点122点→100%正規化)、同種の類似上位から単価中央値×数量スケールで叩き台を出す説明可能な方式。自動見積対象外の判定は各社公式の入稿ガイド/仕様/FAQ。件数・所要時間は仮=提案時に実測。データは Neon の Postgres から取得。
+        仕組み: 引合いの特徴を過去見積と重み付きで突き合わせ(満点122点→100%正規化)、同種の類似上位から単価中央値×数量スケールで叩き台を出す、説明できる方式です。自動見積対象外の判定は各社公式の入稿ガイド・仕様・FAQ に基づきます。件数・所要時間は仮で、提案時に実測へ置き換えます。データは登録済みの過去見積から取得しています。
       </div>
 
       {/* 登録/編集ダイアログ(登録後も閉じずにメッセージ表示) */}
-      <dialog ref={dialogRef}>
+      <dialog ref={dialogRef} aria-labelledby="h-form">
         <form key={formKey} onSubmit={onSaveSubmit}>
           <div className="dlg-body">
-            <h2>{editing ? `過去見積を編集する（${codeOf(editing)}）` : '過去見積を登録する'}</h2>
+            <h2 id="h-form">{editing ? `過去見積を編集する（${codeOf(editing)}）` : '過去見積を登録する'}</h2>
             {editing && <input type="hidden" name="id" defaultValue={editing.id} />}
-            <label>案件名 *</label>
-            <input type="text" name="name" defaultValue={editing?.name ?? ''} placeholder="例: 〇〇スーパー B4折込チラシ" required />
+            <label className="field"><span className="lbl">案件名 <span className="req">必須</span></span>
+              <input type="text" name="name" defaultValue={editing?.name ?? ''} placeholder="例: 〇〇スーパー B4折込チラシ" required /></label>
             <div className="row2">
-              <div><label>種類 *</label><select name="type" defaultValue={editing?.type ?? TYPES[0]}>{TYPES.map((v) => <option key={v}>{v}</option>)}</select></div>
-              <div><label>サイズ *</label><select name="size" defaultValue={editing?.size ?? SIZES[0]}>{SIZES.map((v) => <option key={v}>{v}</option>)}</select></div>
+              <label className="field"><span className="lbl">種類 <span className="req">必須</span></span><select name="type" defaultValue={editing?.type ?? TYPES[0]}>{TYPES.map((v) => <option key={v}>{v}</option>)}</select></label>
+              <label className="field"><span className="lbl">サイズ <span className="req">必須</span></span><select name="size" defaultValue={editing?.size ?? SIZES[0]}>{SIZES.map((v) => <option key={v}>{v}</option>)}</select></label>
             </div>
             <div className="row2">
-              <div><label>用紙 *</label><select name="paper" defaultValue={editing?.paper ?? (paperNames.includes(DEFAULT_PAPER) ? DEFAULT_PAPER : (paperNames[0] ?? ''))}>{papers.map((p) => <option key={p.name} value={p.name}>{p.name}（{p.family}）</option>)}</select></div>
-              <div><label>色 *</label><select name="color" defaultValue={editing?.color ?? COLORS[0]}>{COLORS.map((v) => <option key={v}>{v}</option>)}</select></div>
+              <label className="field"><span className="lbl">用紙 <span className="req">必須</span></span><select name="paper" defaultValue={editing?.paper ?? defaultPaper}>{papers.map((p) => <option key={p.name} value={p.name}>{p.name}（{p.family}）</option>)}</select></label>
+              <label className="field"><span className="lbl">色 <span className="req">必須</span></span><select name="color" defaultValue={editing?.color ?? COLORS[0]}>{COLORS.map((v) => <option key={v}>{v}</option>)}</select></label>
             </div>
             <div className="row2">
-              <div><label>数量 *</label><input type="number" name="qty" min={1} defaultValue={editing?.qty ?? 1000} /></div>
-              <div><label>納期(営業日)</label><input type="number" name="lead_days" min={0} defaultValue={editing?.leadDays ?? 5} /></div>
+              <label className="field"><span className="lbl">数量 <span className="req">必須</span></span><input type="number" inputMode="numeric" name="qty" min={1} defaultValue={editing?.qty ?? 1000} /></label>
+              <label className="field"><span className="lbl">納期(営業日)</span><input type="number" inputMode="numeric" name="lead_days" min={0} defaultValue={editing?.leadDays ?? 5} /></label>
             </div>
             <div className="row2">
-              <div><label>見積金額(税抜) *</label><input type="number" name="amount" min={0} defaultValue={editing?.amount ?? 0} /></div>
-              <div><label>原価 *</label><input type="number" name="cost" min={0} defaultValue={editing?.cost ?? 0} /></div>
+              <label className="field"><span className="lbl">見積金額(税抜) <span className="req">必須</span></span><input type="number" inputMode="numeric" name="amount" min={0} defaultValue={editing?.amount ?? 0} /></label>
+              <label className="field"><span className="lbl">原価 <span className="req">必須</span></span><input type="number" inputMode="numeric" name="cost" min={0} defaultValue={editing?.cost ?? 0} /></label>
             </div>
             <div className="row2">
-              <div><label>支給データの状態 *</label><select name="data_state" defaultValue={editing?.dataState ?? DATA_STATES[0]}>{DATA_STATES.map((v) => <option key={v}>{v}</option>)}</select></div>
-              <div><label>型・版・色の流用 *</label><select name="reuse" defaultValue={editing?.reuse ?? REUSES[0]}>{REUSES.map((v) => <option key={v}>{v}</option>)}</select></div>
+              <label className="field"><span className="lbl">支給データの状態 <span className="req">必須</span></span><select name="data_state" defaultValue={editing?.dataState ?? DATA_STATES[0]}>{DATA_STATES.map((v) => <option key={v}>{v}</option>)}</select></label>
+              <label className="field"><span className="lbl">型・版・色の流用 <span className="req">必須</span></span><select name="reuse" defaultValue={editing?.reuse ?? REUSES[0]}>{REUSES.map((v) => <option key={v}>{v}</option>)}</select></label>
             </div>
-            <label>加工</label>
-            <div className="fin">{FINS.map((v) => (<label key={v}><input type="checkbox" name="finishing" value={v} defaultChecked={editing?.finishing?.includes(v) ?? false} />{v}</label>))}</div>
-            <label>メモ(検索対象)</label>
-            <input type="text" name="note" defaultValue={editing?.note ?? ''} placeholder="毎週リピート 等" />
-            <label>手戻り事由(あれば・検索対象)</label>
-            <input type="text" name="rework" defaultValue={editing?.rework ?? ''} placeholder="特色番号の指定漏れで刷り直し 等" />
-            {saveMsg && <div className={saveMsg.ok ? 'msg-ok' : 'msg-ng'}>{saveMsg.message}</div>}
-            <div className="inline" style={{ marginTop: 14, justifyContent: 'flex-end' }}>
-              <button type="button" className="linkbtn" onClick={() => dialogRef.current?.close()}>閉じる</button>
-              <button type="submit" disabled={saving} style={{ width: 'auto', margin: 0, padding: '9px 18px' }}>{saving ? (editing ? '更新中…' : '登録中…') : (editing ? '更新する' : '登録する')}</button>
+            <fieldset>
+              <legend>加工</legend>
+              <div className="checks">{FINS.map((v) => (<label className="check" key={v}><input type="checkbox" name="finishing" value={v} defaultChecked={editing?.finishing?.includes(v) ?? false} />{v}</label>))}</div>
+            </fieldset>
+            <label className="field"><span className="lbl">メモ <span className="hint">(検索の対象)</span></span>
+              <input type="text" name="note" defaultValue={editing?.note ?? ''} placeholder="毎週リピート 等" /></label>
+            <label className="field"><span className="lbl">手戻り事由 <span className="hint">(あれば。検索の対象)</span></span>
+              <input type="text" name="rework" defaultValue={editing?.rework ?? ''} placeholder="特色番号の指定漏れで刷り直し 等" /></label>
+            <Msg m={saveMsg} />
+            <div className="dlg-foot">
+              <button type="button" className="btn secondary" onClick={() => dialogRef.current?.close()}>閉じる</button>
+              <button type="submit" className="btn primary" disabled={saving}>{saving ? (editing ? '更新中…' : '登録中…') : (editing ? '更新する' : '登録する')}</button>
             </div>
           </div>
         </form>
       </dialog>
 
       {/* 一覧・照会・削除ダイアログ */}
-      <dialog ref={listRef} className="wide">
+      <dialog ref={listRef} className="wide" aria-labelledby="h-list">
         <div className="dlg-body">
-          <h2>過去見積の一覧・編集 <span className="muted">(全{estimates.length}件)</span></h2>
-          <div className="inline">
-            <input type="text" value={filter} placeholder="案件名・種類・サイズ・番号で絞り込み" onChange={(e) => setFilter(e.target.value)} />
-          </div>
-          {listMsg && <div className={listMsg.ok ? 'msg-ok' : 'msg-ng'} style={{ marginTop: 8 }}>{listMsg.message}</div>}
+          <h2 id="h-list">過去見積の一覧・編集 <span className="hint">(全{estimates.length}件)</span></h2>
+          <label className="field flush"><span className="lbl">絞り込み</span>
+            <input type="text" value={filter} placeholder="案件名・種類・サイズ・番号" onChange={(e) => setFilter(e.target.value)} /></label>
+          <Msg m={listMsg} />
           <div className="listwrap">
             {filtered.length ? filtered.map((r) => (
               <div className="lrow" key={r.id}>
                 <div className="lmain">
-                  <b>{r.name}</b> <span className="muted">({codeOf(r)})</span>
-                  <div className="specs">{r.type} / {r.size} / {r.paper ?? '-'} / {r.color} / {r.qty.toLocaleString()}部 / {r.finishing.length ? r.finishing.join('・') : '加工なし'} … {yen(r.amount)}{r.rework ? <span className="rw"> ／ ▲{r.rework}</span> : null}</div>
+                  <b>{r.name}</b> <span className="hint">({codeOf(r)})</span>
+                  <div className="specs">{r.type} / {r.size} / {r.paper ?? '-'} / {r.color} / {r.qty.toLocaleString()}部 / {r.finishing.length ? r.finishing.join('・') : '加工なし'} … <span className="num">{yen(r.amount)}</span>{r.rework ? <span className="rw"> ／ ▲{r.rework}</span> : null}</div>
                 </div>
                 <div className="lact">
-                  <button className="linkbtn" onClick={() => openEdit(r)}>編集</button>
                   {deletingId === r.id ? (
-                    <span className="muted">削除?
-                      <button className="linkbtn danger" style={{ marginLeft: 6 }} disabled={deleting} onClick={() => doDelete(r.id)}>はい</button>
-                      <button className="linkbtn" style={{ marginLeft: 6 }} onClick={() => setDeletingId(null)}>やめる</button>
-                    </span>
+                    deleteConfirm(r.id, codeOf(r))
                   ) : (
-                    <button className="linkbtn danger" onClick={() => setDeletingId(r.id)}>削除</button>
+                    <>
+                      <button type="button" className="btn text" onClick={() => openEdit(r)}>{codeOf(r)} を編集する</button>
+                      <button type="button" className="btn text danger" onClick={() => setDeletingId(r.id)}>{codeOf(r)} を削除する</button>
+                    </>
                   )}
                 </div>
               </div>
-            )) : <p className="muted" style={{ marginTop: 10 }}>「{filter}」に一致する案件はありません。</p>}
+            )) : <p className="hint pad">「{filter}」に一致する案件はありません。絞り込みの語を変えてください。</p>}
           </div>
-          <div className="inline" style={{ marginTop: 14, justifyContent: 'space-between' }}>
-            <button type="button" className="linkbtn" onClick={openCreate}>＋ 新規に登録する</button>
-            <button type="button" className="linkbtn" onClick={() => listRef.current?.close()}>閉じる</button>
+          <div className="dlg-foot between">
+            <button type="button" className="btn secondary" onClick={openCreate}>新規に登録する</button>
+            <button type="button" className="btn secondary" onClick={() => listRef.current?.close()}>閉じる</button>
           </div>
         </div>
       </dialog>
