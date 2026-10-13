@@ -20,11 +20,16 @@
 | CHANGE-P-009 | 2026-08-13 | 引合いが対象外5型に**該当しない**ときの「範囲内(自動見積対象内)」バナーを非表示に。該当時の警告は残す。コミット `95ac31b` | 「定型だから力を入れるな」と読め、引合いを断る示唆になって逆効果(ユーザー指摘) | `EstimateTool.tsx`(表示のみ。叩き台・類似案件は従来どおり) | D40(バナー削除の方。※ID重複あり → ISSUE-P-013) / D33 |
 | CHANGE-P-010 | 2026-10-12 | `docs/` に as-built ドキュメント6点(architecture / change-log / issue-log / test-scenarios / HANDOVER / deploy-runbook)と `screenshots/` を追加。あわせて `docs/SPEC.md` 冒頭の**公開状態の記述のみ**を実態(本番公開済み・URL)に修正(「デプロイは未実施」→公開済み、§7 の見出し注記) | 参照プロジェクト並みの品質へ(D41 / WO-002)。SPEC の「未実施」は実態と矛盾していた | `docs/**` のみ。**コード・DB・環境変数は不変** | WO-002 / D41 / ISSUE-P-004 |
 
+| CHANGE-P-011 | 2026-10-13 | **確定金額のDB保存**: Server Action `recordFinalAmount` を追加。引合い1回=新しい行を insert(`status='draft'`・`source='tool'`・`amount`=確定・`draft_amount`=叩き台(サーバーで再計算)・`reason`・`cost=0`=原価未入力)。記録欄に保存済み直近10件と確認つき削除を表示。語句検索の結果に記録行(確定・叩き台・理由)を表示。**スキーマ変更なし** | PoC合格ライン(D34)の測定手段を機能させる(ISSUE-P-005)。`draft` にして類似検索の母集団・粗利計算を汚さない | `src/app/actions.ts`・`src/db/queries.ts`・`src/components/EstimateTool.tsx`・`src/app/page.tsx` | WO-003 / ISSUE-P-005 / D34・D45 |
+| CHANGE-P-012 | 2026-10-13 | **入力検証とエラー表示の改善**: 数値を厳密にパース(`src/lib/input.ts` の `strictInt`)、更新・削除は対象0件ならエラー、DBエラーは固定文言+サーバーログ、語句検索の `%` `_` `\` をエスケープ | 緩い入力・誤った成功表示・SQL文面の露出を防ぐ | `src/app/actions.ts`・`src/lib/input.ts`(新規) | ISSUE-P-007・008・009 |
+| CHANGE-P-013 | 2026-10-13 | 用紙の既定値を「コート90」に(辞書に無ければ先頭)。接続文字列の前後の引用符・空白を除去(`src/db/index.ts`) | 既定条件で一般的な用紙から検索させる / Vercel のクォート罠の再発防止 | `EstimateTool.tsx`・`src/db/index.ts` | ISSUE-P-011・003 |
+| CHANGE-P-014 | 2026-10-13 | `docs/spec.html` の「デプロイ前」を公開済みに修正。`scripts/db-snapshot.ts`(DBの控え取り・突き合わせ。読み取り専用)と `docs/backup/2026-10-12-before-WO003.json`(合成データの控え)を追加 | 書込み試験の前後でデータが元どおりであることを示す。次のWOでも使い回す | `docs/**`・`scripts/` | WO-003 / ISSUE-P-004 |
+
 ## 未起票・今後の変更候補(起票は着手時)
 
 | 候補 | 内容 | 関連 |
 |---|---|---|
-| 確定金額の永続化 | 「確定金額の記録」を `estimates.draft_amount` / `reason` に保存し、乖離分析できるようにする(PoC合格ラインの測定手段=D34) | ISSUE-P-005 |
-| `DATABASE_URL` のクォート防御 | `src/db/index.ts` で前後のクォートを除去する1行(再発防止案) | ISSUE-P-003 |
+| 記録行の昇格(draft→confirmed) | 原価の入力を必須にして confirmed にし、母集団に加える(cost nullable 化はスキーマ変更) | ISSUE-P-005 |
+| 採番のDB側集約・ENUM単一化 | `code` の生成列/トリガー、pgEnum を定数から生成(スキーマ変更=db-change) | ISSUE-P-006・010 |
 | 認証の導入 | 公開デモのまま誰でも削除できる状態の解消(顧客実データを入れる前に必須) | ISSUE-P-012 |
 | Phase 2 意味検索 | `embedding` 列(pgvector)の追加 | SPEC.md §6 |

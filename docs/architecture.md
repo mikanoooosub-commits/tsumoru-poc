@@ -42,7 +42,7 @@ flowchart LR
 | 登録・更新 | フォーム → `onSaveSubmit` → `saveEstimate(null, FormData)`(Server Action) → `parseForm` で検証 → insert/update → `revalidatePath('/')` | hidden `id` の有無で分岐。成功後もダイアログは閉じない(B1) |
 | 削除 | 一覧のインライン確認「はい」→ `deleteEstimate(id)` → `revalidatePath('/')` | 物理削除 |
 | 語句検索 | `searchMemos(kw)` → `note`/`rework`/`reason` を ILIKE、先頭20件 | `/` 内の「詳しく見る」トグル |
-| 確定金額の記録 | **ブラウザの state のみ**(`recHist`)。DBに保存しない | 再読み込みで消える。画面にも「この画面内のみ」と表示 → [ISSUE-P-005](issue-log.md) |
+| 確定金額の記録 | 「記録」→ `recordFinalAmount(input)`(Server Action) → 入力を1つずつ検証 → **叩き台をサーバーで再計算** → `estimates` に新しい行を insert(`status='draft'`・`source='tool'`・`cost=0`=原価未入力)→ `code` 付与 → `revalidatePath('/')` | 母集団(reference/confirmed)・一覧には入らない。再読み込み後は `getToolRecords()` の直近10件を記録欄に表示。誤記録は記録欄の「削除」(確認つき)で消せる → [ISSUE-P-005](issue-log.md)(対応済) |
 
 ## 3. Server Action・クエリ一覧
 
@@ -51,10 +51,11 @@ flowchart LR
 | 関数 | 入力 | 処理 | 書込み | 戻り値 |
 |---|---|---|---|---|
 | `saveEstimate(_prev, formData)` | フォーム値(`id` が空なら新規) | `parseForm` で検証 → `id` あり: `update … where id`(status/source は変えない) / なし: `insert`(`status='confirmed'`・`source='manual'`)→ `returning id` → `code='E-{id:3桁}'` を `update` | estimates | `{ok, message}` |
-| `deleteEstimate(id)` | `id: number` | `Number.isFinite` 検査 → `delete where id` | estimates | `{ok, message}` |
-| `searchMemos(kw)` | 検索語 | 空なら `[]`。`ilike(note) or ilike(rework) or ilike(reason)`、`limit 20` | なし | `{id, code, name, rework, note}[]` |
+| `deleteEstimate(id)` | `id: number` | 正の整数を検査 → `delete where id returning id`(0件なら「対象が見つかりません」) | estimates | `{ok, message}` |
+| `recordFinalAmount(input)` | `{type,size,paper,color,qty,finishing,dataState,reuse,amount,reason}`(`unknown` として受け、型・範囲・選択肢を1つずつ検証。`as` で済ませない) | 用紙を `papers` で確認 → `getEstimates()`+`rank`+`buildDraft` で叩き台を再計算(類似が無ければ記録しない)→ insert(`status='draft'`,`source='tool'`,`amount`=確定,`draft_amount`=叩き台,`reason`,`cost=0`,`name='【つもる記録】{種類} {サイズ} {色} {数量}部'`)→ `code='E-{id:3桁}'` を update | estimates | `{ok, message}` |
+| `searchMemos(kw)` | 検索語 | 空なら `[]`。`%` `_` `\` をエスケープして `ilike(note) or ilike(rework) or ilike(reason)`、`limit 20` | なし | `{id, code, name, rework, note, reason, source, amount, draftAmount}[]`(記録行は `source='tool'` で判別し「【つもる記録】確定…(叩き台…)補正理由」と表示) |
 
-`parseForm` の検証(DBに触れる前に return する): 案件名が空でない / `type`・`size`・`color`・`data_state`・`reuse` が `lib/scoring.ts` の選択肢定数に含まれる / `qty` は正の整数 / `amount`・`cost` は 0 以上 / `lead_days` は空または 0 以上 / `finishing` は選択肢外を除去。
+`parseForm` の検証(DBに触れる前に return する): 案件名が空でない / `type`・`size`・`color`・`data_state`・`reuse` が `lib/scoring.ts` の選択肢定数に含まれる / `qty` は正の整数 / `amount`・`cost` は 0 以上 / `lead_days` は空または 0 以上 / `finishing` は選択肢外を除去。数値は `src/lib/input.ts` の `strictInt`(数字のみ・int4 上限以内。`12abc` や `1e3` は不正)で解釈する。DB エラーは画面に出さず固定文言を返し、詳細は `console.error`(サーバーログ)へ。
 
 ### 読み取りクエリ(`src/db/queries.ts`)
 
@@ -62,6 +63,7 @@ flowchart LR
 |---|---|
 | `getEstimates()` | `estimates` を `papers` に **LEFT JOIN**(`family` を取得)。`status in ('reference','confirmed')`、`created_at desc`。列は明示列挙(`select *` なし) |
 | `getPapers()` | `papers` を `name` 昇順で全件 |
+| `getToolRecords(limit=10)` | `source='tool'` かつ `status='draft'` の行を新しい順に(記録欄の表示用。`id, code, draft_amount, amount, reason, created_at`) |
 
 ## 4. DB(Neon / Postgres)
 
@@ -75,7 +77,9 @@ flowchart LR
 
 ENUM(7種): `estimate_status`(reference/draft/confirmed/issued) / `estimate_source`(seed/manual/tool) / `product_type` / `size_type` / `color_type` / `data_state_type` / `reuse_type`。
 
-**現状使われていない列・値**(受け皿として存在): `estimates.customer_id`・`draft_amount`・`reason`(検索対象だが書き込む画面なし)・`date`(シードのみ)、status の `draft`/`issued`、source の `tool`。→ [ISSUE-P-005](issue-log.md)
+**`source='tool'` の行の `cost=0` は「原価未入力」を表す。粗利計算には使わない**(`status='draft'` のため `getEstimates()` の母集団に入らず、`marginOf` に渡らない)。将来 `draft`→`confirmed` の昇格を作る場合は、原価の入力を必須にすること(`cost=0` のまま `confirmed` にすると粗利100%として母集団を汚す)。
+
+**現状使われていない列・値**(受け皿として存在): `estimates.customer_id`・`date`(シードのみ)、status の `issued`。`draft_amount`・`reason`・status `draft`・source `tool` は確定金額の記録(WO-003)で使用。→ [ISSUE-P-005](issue-log.md)
 
 ## 5. ソース構成と型の置き場
 
@@ -84,10 +88,12 @@ ENUM(7種): `estimate_status`(reference/draft/confirmed/issued) / `estimate_sour
 | `src/app/page.tsx` | `/` の Server Component。データ取得して `EstimateTool` へ |
 | `src/app/layout.tsx` / `globals.css` | 共通レイアウト(`lang="ja"`、Geist フォント)・スタイル |
 | `src/app/actions.ts` | Server Actions(§3) |
-| `src/components/EstimateTool.tsx` | 唯一のUI。条件入力・結果・登録/編集ダイアログ・一覧ダイアログ・検索・確定記録(`'use client'`、358行) |
+| `src/lib/input.ts` | 入力の厳密な解釈(`strictInt`・`INT4_MAX`・`escapeLike`)。`'use server'` ファイルには非同期関数しか置けないため分離 |
+| `scripts/db-snapshot.ts` | DB の控え取り(`dump`)と突き合わせ(`diff`)。**読み取り専用**。書込み試験の前後で使う |
+| `src/components/EstimateTool.tsx` | 唯一のUI。条件入力・結果・登録/編集ダイアログ・一覧ダイアログ・検索・確定記録(`'use client'`) |
 | `src/lib/scoring.ts` | フレームワーク非依存の計算: `score` / `rank` / `detect`(対象外5型) / `buildDraft` / `savings` と選択肢定数(`TYPES`…`REUSES`) |
 | `src/db/schema.ts` | Drizzle スキーマ・ENUM・型 `Estimate` / `NewEstimate` |
-| `src/db/index.ts` | `drizzle(neon(DATABASE_URL))`。未設定なら起動時に throw |
+| `src/db/index.ts` | `drizzle(neon(DATABASE_URL))`。未設定なら起動時に throw。接続文字列の前後の空白・引用符は除去(P-003 再発防止) |
 | `src/db/queries.ts` | 読み取りクエリ(§3) |
 | `src/db/seed.ts` / `seed-data.json` | 合成(仮)36件の投入。実行前に全表を delete する冪等方式 |
 

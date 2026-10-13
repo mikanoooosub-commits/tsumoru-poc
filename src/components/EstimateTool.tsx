@@ -6,21 +6,28 @@ import {
   rank, detect, buildDraft, savings, yen, unitOf, marginOf,
   TYPES, SIZES, COLORS, FINS, DATA_STATES, REUSES,
 } from '@/lib/scoring';
-import { saveEstimate, deleteEstimate, searchMemos, type FormState } from '@/app/actions';
+import { saveEstimate, deleteEstimate, searchMemos, recordFinalAmount, type FormState } from '@/app/actions';
+import type { ToolRecord } from '@/db/queries';
 
 type Paper = { name: string; family: string };
-type MemoRow = { id: number; code: string | null; name: string; rework: string | null; note: string | null };
+type MemoRow = {
+  id: number; code: string | null; name: string; rework: string | null; note: string | null;
+  reason: string | null; source: string; amount: number; draftAmount: number | null;
+};
+
+// 用紙の既定(ISSUE-P-011): チラシ既定条件に合う一般的な用紙。辞書に無ければ先頭にフォールバック
+const DEFAULT_PAPER = 'コート90';
 
 const codeOf = (r: { code: string | null; id: number }) => r.code ?? `#${r.id}`;
 
-export default function EstimateTool({ estimates, papers }: { estimates: EstimateRow[]; papers: Paper[] }) {
+export default function EstimateTool({ estimates, papers, records }: { estimates: EstimateRow[]; papers: Paper[]; records: ToolRecord[] }) {
   const paperFamily = new Map(papers.map((p) => [p.name, p.family]));
   const paperNames = papers.map((p) => p.name);
 
   // ── 入力 ──
   const [type, setType] = useState(TYPES[0]);
   const [size, setSize] = useState(SIZES[0]);
-  const [paper, setPaper] = useState(paperNames[0] ?? '');
+  const [paper, setPaper] = useState(paperNames.includes(DEFAULT_PAPER) ? DEFAULT_PAPER : (paperNames[0] ?? ''));
   const [color, setColor] = useState(COLORS[0]);
   const [qty, setQty] = useState('3000');
   const [fin, setFin] = useState<string[]>([]);
@@ -28,6 +35,7 @@ export default function EstimateTool({ estimates, papers }: { estimates: Estimat
   const [reuse, setReuse] = useState(REUSES[0]);
   const toggleFin = (v: string) => setFin((f) => (f.includes(v) ? f.filter((x) => x !== v) : [...f, v]));
 
+  const [resPaper, setResPaper] = useState(''); // 叩き台を出した時点の用紙名(記録時に送る)
   const [res, setRes] = useState<null | { q: Query; detect: DetectHit[]; basis: Scored[]; strong: Scored[]; draft: ReturnType<typeof buildDraft> }>(null);
   function run() {
     const q: Query = {
@@ -35,6 +43,7 @@ export default function EstimateTool({ estimates, papers }: { estimates: Estimat
       qty: Math.max(1, parseInt(qty, 10) || 1), finishing: fin, dataState: ds, reuse,
     };
     const { basis, strong } = rank(q, estimates);
+    setResPaper(paper);
     setRes({ q, detect: detect(q), basis, strong, draft: buildDraft(basis, q) });
   }
 
@@ -68,11 +77,11 @@ export default function EstimateTool({ estimates, papers }: { estimates: Estimat
   const [deleting, startDelete] = useTransition();
   const [listMsg, setListMsg] = useState<FormState>(null);
   function openList() { setListMsg(null); setFilter(''); setDeletingId(null); listRef.current?.showModal(); }
-  function doDelete(id: number) {
+  function doDelete(id: number, fromRecords = false) {
     startDelete(async () => {
       const r = await deleteEstimate(id);
       setDeletingId(null);
-      setListMsg(r);
+      if (fromRecords) setRecMsg(r); else setListMsg(r);
     });
   }
   const filtered = estimates.filter((r) => {
@@ -87,16 +96,25 @@ export default function EstimateTool({ estimates, papers }: { estimates: Estimat
   const [isSearching, startSearch] = useTransition();
   const onSearch = () => startSearch(async () => setSearchRes(await searchMemos(kw)));
 
-  // ── 確定記録(この画面内のみ・永続化しない) ──
+  // ── 確定金額の記録(DBに保存。ISSUE-P-005) ──
+  // 送るのは検索時点の条件と確定金額・理由だけ。叩き台はサーバーが条件から再計算して保存する。
   const [recAmount, setRecAmount] = useState('');
   const [recReason, setRecReason] = useState('');
-  const [recHist, setRecHist] = useState<{ draft: number; amt: number; diff: number; reason: string }[]>([]);
+  const [recMsg, setRecMsg] = useState<FormState>(null);
+  const [recording, startRecord] = useTransition();
   function record() {
-    const amt = parseInt(recAmount, 10) || 0;
-    const draftAmt = res?.draft?.amount ?? 0;
-    if (!amt || !draftAmt) return;
-    setRecHist((h) => [{ draft: draftAmt, amt, diff: ((amt - draftAmt) / draftAmt) * 100, reason: recReason.trim() || '(理由なし)' }, ...h]);
-    setRecAmount(''); setRecReason('');
+    if (!res) return;
+    if (!/^\d+$/.test(recAmount.trim())) { setRecMsg({ ok: false, message: '確定金額は数字(円)で入力してください' }); return; }
+    const amount = Number(recAmount.trim());
+    startRecord(async () => {
+      const r = await recordFinalAmount({
+        type: res.q.type, size: res.q.size, paper: resPaper, color: res.q.color, qty: res.q.qty,
+        finishing: res.q.finishing, dataState: res.q.dataState, reuse: res.q.reuse,
+        amount, reason: recReason,
+      });
+      setRecMsg(r);
+      if (r?.ok) { setRecAmount(''); setRecReason(''); }
+    });
   }
 
   const sv = savings();
@@ -233,21 +251,40 @@ export default function EstimateTool({ estimates, papers }: { estimates: Estimat
                   </div>
                   {searchRes && (searchRes.length ? (
                     <div style={{ marginTop: 8 }}>
-                      {searchRes.map((r) => <div className="sres" key={r.id}>▸ <b>{codeOf(r)} {r.name}</b> … {r.rework || r.note}</div>)}
+                      {searchRes.map((r) => <div className="sres" key={r.id}>▸ <b>{codeOf(r)} {r.name}</b> … {r.source === 'tool'
+                        ? <>確定 {yen(r.amount)}{r.draftAmount !== null ? `(叩き台 ${yen(r.draftAmount)})` : ''} … 補正理由: {r.reason}<span className="muted">【つもる記録】</span></>
+                        : (r.rework || r.note || r.reason)}</div>)}
                       <div className="muted" style={{ marginTop: 6 }}>※属性は違っても「見積時に確認すべき理由」が近い案件を拾える(DBの部分一致検索)。</div>
                     </div>
                   ) : <p className="muted" style={{ marginTop: 8 }}>「{kw}」に一致するメモ・手戻り事由は見つかりませんでした。</p>)}
                 </div>
                 <div className="card">
-                  <h2>確定金額を記録する <span className="muted">(この画面内のみ)</span></h2>
+                  <h2>確定金額を記録する <span className="muted">(DBに保存・叩き台との差を後で見る)</span></h2>
                   <div className="inline">
                     <div><label style={{ margin: '0 0 .2em' }}>確定金額(円)</label><input type="number" value={recAmount} style={{ width: 140 }} placeholder="31000" onChange={(e) => setRecAmount(e.target.value)} /></div>
                     <div style={{ flex: 1, minWidth: 180 }}><label style={{ margin: '0 0 .2em' }}>補正理由(自由記述)</label><input type="text" value={recReason} placeholder="特殊紙の歩留まりを見て上げた 等" onChange={(e) => setRecReason(e.target.value)} /></div>
-                    <button onClick={record}>記録</button>
+                    <button onClick={record} disabled={recording}>{recording ? '記録中…' : '記録'}</button>
                   </div>
-                  {recHist.length > 0 && (
-                    <div><div className="hist-hd">── 記録 ──</div>
-                      {recHist.map((h, i) => <div className="hrow" key={i}>叩き台 {yen(h.draft)} → 確定 <b>{yen(h.amt)}</b>（{h.diff >= 0 ? '+' : ''}{h.diff.toFixed(1)}%） 理由: {h.reason}</div>)}
+                  {recMsg && <p className={recMsg.ok ? 'msg-ok' : 'msg-ng'} role="status" style={{ marginTop: 8 }}>{recMsg.message}</p>}
+                  {records.length > 0 && (
+                    <div><div className="hist-hd">── 記録(新しい順・直近{records.length}件) ──</div>
+                      {records.map((h) => {
+                        const diff = h.draftAmount ? ((h.amount - h.draftAmount) / h.draftAmount) * 100 : null;
+                        return (
+                          <div className="hrow" key={h.id}>
+                            {h.code ?? `#${h.id}`} 叩き台 {h.draftAmount !== null ? yen(h.draftAmount) : '-'} → 確定 <b>{yen(h.amount)}</b>
+                            {diff !== null && <>（{diff >= 0 ? '+' : ''}{diff.toFixed(1)}%）</>} 理由: {h.reason || '(理由なし)'}
+                            {deletingId === h.id ? (
+                              <span className="muted"> 削除?
+                                <button className="linkbtn danger" style={{ marginLeft: 6 }} disabled={deleting} onClick={() => doDelete(h.id, true)}>はい</button>
+                                <button className="linkbtn" style={{ marginLeft: 6 }} onClick={() => setDeletingId(null)}>やめる</button>
+                              </span>
+                            ) : (
+                              <button className="linkbtn danger" style={{ marginLeft: 8 }} onClick={() => setDeletingId(h.id)}>削除</button>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -288,7 +325,7 @@ export default function EstimateTool({ estimates, papers }: { estimates: Estimat
               <div><label>サイズ *</label><select name="size" defaultValue={editing?.size ?? SIZES[0]}>{SIZES.map((v) => <option key={v}>{v}</option>)}</select></div>
             </div>
             <div className="row2">
-              <div><label>用紙 *</label><select name="paper" defaultValue={editing?.paper ?? paperNames[0] ?? ''}>{papers.map((p) => <option key={p.name} value={p.name}>{p.name}（{p.family}）</option>)}</select></div>
+              <div><label>用紙 *</label><select name="paper" defaultValue={editing?.paper ?? (paperNames.includes(DEFAULT_PAPER) ? DEFAULT_PAPER : (paperNames[0] ?? ''))}>{papers.map((p) => <option key={p.name} value={p.name}>{p.name}（{p.family}）</option>)}</select></div>
               <div><label>色 *</label><select name="color" defaultValue={editing?.color ?? COLORS[0]}>{COLORS.map((v) => <option key={v}>{v}</option>)}</select></div>
             </div>
             <div className="row2">
