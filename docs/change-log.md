@@ -25,6 +25,7 @@
 | CHANGE-P-013 | 2026-10-13 | 用紙の既定値を「コート90」に(辞書に無ければ先頭)。接続文字列の前後の引用符・空白を除去(`src/db/index.ts`) | 既定条件で一般的な用紙から検索させる / Vercel のクォート罠の再発防止 | `EstimateTool.tsx`・`src/db/index.ts` | ISSUE-P-011・003 |
 | CHANGE-P-014 | 2026-10-13 | `docs/spec.html` の「デプロイ前」を公開済みに修正。`scripts/db-snapshot.ts`(DBの控え取り・突き合わせ。読み取り専用)と `docs/backup/2026-10-12-before-WO003.json`(合成データの控え)を追加 | 書込み試験の前後でデータが元どおりであることを示す。次のWOでも使い回す | `docs/**`・`scripts/` | WO-003 / ISSUE-P-004 |
 | CHANGE-P-015 | 2026-10-13 | **画面整備(WO-009)**: 色・文字・部品を印刷版デザインシステム(design-tokens v1.1)に揃え、`globals.css` の `:root` の1か所に集約。ダークテーマを廃止(ライトのみ)。文字は 14〜40px の5段階・太さ2種、押せる部品は 44px 以上、フォーカスの輪・ラベルの結び付き・メッセージの記号と `role` を整備。記録・メモ検索を結果エリアの下の常時表示の帯に(折りたたみ廃止。叩き台がないときは無効にして理由を表示)。内部の記号・基盤名を画面から外し、文言を動詞に。`error.tsx`・`not-found.tsx` を追加。`docs/DESIGN-SYSTEM.md` を新設。**機能・計算式・DB・保存する値は変更なし**(表示用の文字列「型・版代」の補足のみ変更) | PoC デモの見た目をデッキと同じ水準に。使い手(見積担当)が、再読み込み直後から保存した記録を見られるように(D52 判断2) | `src/app/globals.css`・`layout.tsx`・`error.tsx`・`not-found.tsx`・`src/components/EstimateTool.tsx`・`src/lib/scoring.ts`(katagata の表示文字列のみ)・`docs/**` | WO-009 / D52・D56・D58 / design-audit.md |
+| CHANGE-P-016 | 2026-10-13 | ヘッダーの対象表示を「チラシ・DM・名刺・ポスター等の**定型**」→「…等の**商業印刷**」に変更。b01・b02 のスクショを撮り直し(旧 b02 に写っていた「このモデルには未計上」は CHANGE-P-015 で「叩き台には含みません」に直済み) | 「定型」と出ると変則案件は対象外と読まれ、提案の背骨(自動見積に乗らない案件を速く・根拠つきに)と食い違うため(D60) | `src/components/EstimateTool.tsx`(表示文字列のみ)・`docs/SPEC.md`・`docs/test-scenarios.md`・`docs/screenshots/audit/b01・b02` | WO-009-3 / D60 |
 
 ## 未起票・今後の変更候補(起票は着手時)
 

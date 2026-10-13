@@ -163,7 +163,7 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
         </div>
         <div className="ctx">
           <span className="chip line"><Kari /> 合成データ・金額は例示</span>
-          <span className="chip line">対象: チラシ・DM・名刺・ポスター等の定型</span>
+          <span className="chip line">対象: チラシ・DM・名刺・ポスター等の商業印刷</span>
           <span className="chip line">登録済み {estimates.length}件</span>
         </div>
       </header>
@@ -206,7 +206,7 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
           ) : (
             <div className="results">
               <div className="rescol">
-                {/* 判定(対象外の5型に該当したときだけ表示。範囲内=定型は何も出さない) */}
+                {/* 判定(対象外の5型に該当したときだけ表示。範囲内は何も出さない) */}
                 {res.detect.length > 0 && (
                   <section className="notice" aria-labelledby="h-detect">
                     <b className="label" id="h-detect">▲ この案件はネット印刷の自動見積の対象外に該当します</b>
