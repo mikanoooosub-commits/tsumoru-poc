@@ -92,36 +92,41 @@ export function rank(q: Query, rows: EstimateRow[]): { top: Scored[]; basis: Sco
   return { top, basis, strong };
 }
 
-// ── 自動見積の対象外判定(5型・出典は sources.C2-b.md の各社公式一次) ──
-export type DetectHit = { t: string; d: string; links: [string, string][] };
+// ── ネット印刷で自動で完結しない条件の判定(5型・出典は sources.C2-b.md の各社公式一次) ──
+// 文言は出典どおりの強さにする(WO-017・D71)。特色・型抜きは注文でき価格も出るので「対象外」とは書かない
+export type DetectHit = { t: string; d: string; note?: string; links: [string, string][] };
 export function detect(q: Query): DetectHit[] {
   const hits: DetectHit[] = [];
   if (['特色1C', '特色2C', '前回色合わせ'].includes(q.color))
     hits.push({
       t: '① 特色指定',
-      d: '自動入稿(ダイレクト/PDF/スマートチェック)非対応・スタッフ目視チェックのみ。片面2色まで／45kg用紙は不可／追加納期+2日／特色番号を別途指定',
+      d: '注文はでき、価格も出ます。ただし自動入稿(ダイレクト/PDF/スマートチェック)には対応しておらず、スタッフの目視チェックで入稿します。片面2色まで／45kg用紙は不可／追加納期+2日／特色番号を別途指定',
       links: [
         ['グラフィック公式FAQ', 'https://www.graphic.jp/customer/faq/answer/101585'],
         ['グラフィック公式 特色', 'https://www.graphic.jp/options/print_ink/trait_ink'],
       ],
     });
   // 箔押しは入れない: 箔押し名刺はネット印刷の料金表から注文できる(D59・BLIND-FC BF-13)。型抜きだけを判定する
-  if (q.finishing.includes('型抜き'))
+  // 型抜きは料金表から注文できる。事前見積と明記されているのは折り加工との併用だけなので、折りも選ばれたときだけ note で示す
+  if (q.finishing.includes('型抜き')) {
+    const withFold = q.finishing.includes('折り');
     hits.push({
-      t: '② 特殊加工(型抜き)',
-      d: '用紙厚/寸法制限・鋭角/小孔は製造不可・折加工併用は事前見積で形状確認',
+      t: withFold ? '② 特殊加工(型抜き+折り)' : '② 特殊加工(型抜き)',
+      d: '料金表から注文できますが、入稿はスタッフのチェックだけです。用紙(110kg以上)・寸法(A7〜B2)・形状(鋭角・小さい孔などは不可)・納期(最短2日〜)に制限があります。折り加工と併用すると、事前見積で形状を確かめます',
+      note: withFold ? '今回は折りも選ばれているので、事前見積になります。' : undefined,
       links: [['グラフィック公式 トムソン', 'https://www.graphic.jp/options/special/thomson']],
     });
+  }
   if (q.size === 'その他')
     hits.push({
       t: '③ 変形サイズ・規格外',
-      d: '加工にトムソン/自由カットの候補が出ない商品は対応不可',
+      d: '対応する商品なら追加料金なしで注文できますが、加工にトムソン/自由カットの候補が出ない商品は対応していません',
       links: [['グラフィック公式FAQ', 'https://www.graphic.jp/customer/faq/answer/100612']],
     });
   if (q.type === 'POP/販促')
     hits.push({
       t: '④ サイト掲載外の特注品',
-      d: '自動見積の対象外→認定パートナーを紹介して個別見積',
+      d: 'サイトに無い仕様は自動見積の対象外です。「特注品・見積もりサービス」で認定パートナーを紹介し、個別に見積ります',
       links: [['ラクスル公式 特注見積', 'https://raksul.com/contact/estimate/']],
     });
   if (q.dataState === 'ラフ・要組版' || q.dataState === '手書き・要デザイン')

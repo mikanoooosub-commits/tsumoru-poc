@@ -262,18 +262,18 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
               {/* 叩き台を出した条件(画面の入力と結果が食い違っていないかを、その場で確かめられるように) */}
               <p className="cond">この条件で出しました: {res.q.type} / {res.q.size} / {resPaper} / {res.q.color} / {res.q.qty.toLocaleString()}部 / 加工: {res.q.finishing.length ? res.q.finishing.join('・') : 'なし'} / {res.q.dataState} / {res.q.reuse}</p>
 
-              {/* 判定(対象外の型に該当したときだけ、結果のいちばん上に全幅で出す。範囲内は何も出さない) */}
+              {/* 判定(ネット印刷で自動で完結しない条件に該当したときだけ、結果のいちばん上に全幅で出す。該当なしは何も出さない) */}
               {res.detect.length > 0 && (
                 <section className="judge" aria-labelledby="h-detect">
-                  <h2 id="h-detect"><span className="judge-tag">▲ 自動見積の対象外</span> ネット印刷の価格表では出せない案件です(該当 {res.detect.length}件)</h2>
+                  <h2 id="h-detect"><span className="judge-tag">▲ 自動で完結しない条件</span> ネット印刷でも、人の確認や個別の見積が入る条件があります(該当 {res.detect.length}件)</h2>
                   <ul>{res.detect.map((h, i) => (
-                    <li key={i}><b>{h.t}</b> … {h.d}<br />
+                    <li key={i}><b>{h.t}</b> … {h.d}{h.note && <>。<b>{h.note}</b></>}<br />
                       <span className="src">{h.links.map(([label, url], j) => (
                         <span key={j}>{j > 0 ? ' ／ ' : ''}<a href={url} target="_blank" rel="noreferrer">{label}</a></span>
                       ))}</span>
                     </li>
                   ))}</ul>
-                  <div className="after">価格表で比べられない分、下の叩き台で、過去の似た案件から金額の目安を出せます。</div>
+                  <div className="after">下の叩き台では、過去の似た案件から金額の目安を出しています。</div>
                 </section>
               )}
 
@@ -406,7 +406,7 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
       </main>
 
       <div className="foot">
-        仕組み: 引合いの特徴を過去見積と重み付きで突き合わせ(満点122点→100%正規化)、同種の類似上位から単価中央値×数量スケールで叩き台を出す、説明できる方式です。自動見積対象外の判定は各社公式の入稿ガイド・仕様・FAQ に基づきます。データは登録済みの過去見積から取得しています。
+        仕組み: 引合いの特徴を過去見積と重み付きで突き合わせ(満点122点→100%正規化)、同種の類似上位から単価中央値×数量スケールで叩き台を出す、説明できる方式です。ネット印刷で自動で完結しない条件(人の確認・個別見積が入る)の判定は、各社公式の入稿ガイド・仕様・FAQ に基づきます。データは登録済みの過去見積から取得しています。
       </div>
 
       {/* 登録/編集ダイアログ(登録後も閉じずにメッセージ表示) */}

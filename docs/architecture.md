@@ -92,7 +92,7 @@ ENUM(7種): `estimate_status`(reference/draft/confirmed/issued) / `estimate_sour
 | `src/lib/input.ts` | 入力の厳密な解釈(`strictInt`・`INT4_MAX`・`escapeLike`)。`'use server'` ファイルには非同期関数しか置けないため分離 |
 | `scripts/db-snapshot.ts` | DB の控え取り(`dump`)と突き合わせ(`diff`)。**読み取り専用**。書込み試験の前後で使う |
 | `src/components/EstimateTool.tsx` | 唯一のUI。条件入力・結果・登録/編集ダイアログ・一覧ダイアログ・検索・確定記録(`'use client'`) |
-| `src/lib/scoring.ts` | フレームワーク非依存の計算: `score` / `rank` / `detect`(対象外5型。②は型抜きのみ) / `buildDraft`(画面の説明用に `baseQty`・`scaleClamped` も返す) と選択肢定数。`savings` は 2026-10-14 に削除(削減効果の欄の撤去)(`TYPES`…`REUSES`) |
+| `src/lib/scoring.ts` | フレームワーク非依存の計算: `score` / `rank` / `detect`(ネット印刷で自動で完結しない条件の5型。②は型抜きのみ・折りも選ばれたときは `note` で事前見積を示す) / `buildDraft`(画面の説明用に `baseQty`・`scaleClamped` も返す) と選択肢定数。`savings` は 2026-10-14 に削除(削減効果の欄の撤去)(`TYPES`…`REUSES`) |
 | `src/db/schema.ts` | Drizzle スキーマ・ENUM・型 `Estimate` / `NewEstimate` |
 | `src/db/index.ts` | `drizzle(neon(DATABASE_URL))`。未設定なら起動時に throw。接続文字列の前後の空白・引用符は除去(P-003 再発防止) |
 | `src/db/queries.ts` | 読み取りクエリ(§3) |
