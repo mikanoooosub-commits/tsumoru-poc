@@ -33,7 +33,7 @@ export type Query = {
 };
 
 export const MAXSCORE = 122; // 40+16+12+12+10+10+12+10
-export const HOURLY = 2631; // 円/時(全印工連 令和6年度 一次)
+export const HOURLY = 2610; // 円/時(全印工連 令和7年度 全国集計編: 4,967千円÷1,901時間17分=2,612円を10円単位に丸め)
 const DTP: Record<string, number> = { '完全データ': 0, 'ラフ・要組版': 1.0, '手書き・要デザイン': 3.0 };
 
 export const yen = (n: number) => '¥' + Math.round(n).toLocaleString();

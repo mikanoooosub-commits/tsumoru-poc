@@ -343,7 +343,7 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
                   </tbody>
                 </table>
               </div>
-              <p>削減 {sv.saveMin}分/件(=50%) を <code>年間コスト=削減時間×年間件数×時給2,631円</code> に当てると、年1,000件で約<b className="num">{sv.y1000.toLocaleString()}円</b>、2,000件で約<b className="num">{sv.y2000.toLocaleString()}円</b>、3,000件で約<b className="num">{sv.y3000.toLocaleString()}円</b>の削減です <Kari />。時給のみ一次データで、件数・時間は仮です。提案時に実測へ置き換えます。</p>
+              <p>削減 {sv.saveMin}分/件(=50%) を <code>年間コスト=削減時間×年間件数×時給2,610円</code> に当てると、年1,000件で約<b className="num">{sv.y1000.toLocaleString()}円</b>、2,000件で約<b className="num">{sv.y2000.toLocaleString()}円</b>、3,000件で約<b className="num">{sv.y3000.toLocaleString()}円</b>の削減です <Kari />。時給のみ一次データで、件数・時間は仮です。提案時に実測へ置き換えます。</p>
             </section>
           )}
         </div>
