@@ -1,25 +1,49 @@
 'use server';
 
 import { db } from '@/db';
-import { estimates, papers, type NewEstimate } from '@/db/schema';
+import { estimates, papers, typeEnum, sizeEnum, colorEnum, dataStateEnum, reuseEnum } from '@/db/schema';
 import { getEstimates } from '@/db/queries';
 import { revalidatePath } from 'next/cache';
 import { or, ilike, eq } from 'drizzle-orm';
-import { strictInt, escapeLike, INT4_MAX } from '@/lib/input';
-import { TYPES, SIZES, COLORS, DATA_STATES, REUSES, FINS, rank, buildDraft, type Query } from '@/lib/scoring';
+import { strictInt, escapeLike, parseQty, INT4_MAX, QTY_ERROR, NAME_MAX, MEMO_MAX, REASON_MAX } from '@/lib/input';
+import { FINS, rank, buildDraft, type Query } from '@/lib/scoring';
 
 export type FormState = { ok: boolean; message: string } | null;
 
-type Parsed = {
-  name: string; type: string; size: string; paper: string | null; color: string;
-  dataState: string; reuse: string; qty: number; amount: number; cost: number;
+// 選択肢の判定(DBの ENUM の値そのものと照らす。合っていれば ENUM の型に絞り込まれるので `as` が要らない)
+function oneOf<T extends string>(values: readonly T[], v: string): v is T {
+  return values.some((x) => x === v);
+}
+const TYPE_VALUES = typeEnum.enumValues;
+const SIZE_VALUES = sizeEnum.enumValues;
+const COLOR_VALUES = colorEnum.enumValues;
+const DATA_STATE_VALUES = dataStateEnum.enumValues;
+const REUSE_VALUES = reuseEnum.enumValues;
+
+type EstimateValues = {
+  name: string;
+  type: (typeof TYPE_VALUES)[number];
+  size: (typeof SIZE_VALUES)[number];
+  paper: string | null;
+  color: (typeof COLOR_VALUES)[number];
+  dataState: (typeof DATA_STATE_VALUES)[number];
+  reuse: (typeof REUSE_VALUES)[number];
+  qty: number; amount: number; cost: number;
   leadDays: number | null; note: string | null; rework: string | null; finishing: string[];
 };
 
+// 金額(1円以上の整数)。空・0・負・小数・桁あふれは null(F-04: 「必須」の金額が0円で通っていた)
+function parseYen(raw: string): number | null {
+  const v = strictInt(raw);
+  return Number.isFinite(v) && v >= 1 ? v : null;
+}
+
 // ── フォーム値の取り出し＋サーバ側検証(クライアント入力は信用しない) ──
-function parseForm(formData: FormData): { ok: true; v: Parsed } | { ok: false; message: string } {
-  const str = (k: string) => (formData.get(k) as string | null)?.trim() ?? '';
-  const num = (k: string) => strictInt(str(k));
+function parseForm(formData: FormData): { ok: true; v: EstimateValues } | { ok: false; message: string } {
+  const str = (k: string) => {
+    const v = formData.get(k);
+    return typeof v === 'string' ? v.trim() : '';
+  };
 
   const name = str('name');
   const type = str('type');
@@ -28,24 +52,28 @@ function parseForm(formData: FormData): { ok: true; v: Parsed } | { ok: false; m
   const color = str('color');
   const dataState = str('data_state');
   const reuse = str('reuse');
-  const qty = num('qty');
-  const amount = num('amount');
-  const cost = num('cost');
-  const leadDays = str('lead_days') ? num('lead_days') : null;
+  const qty = parseQty(str('qty'));
+  const amount = parseYen(str('amount'));
+  const cost = parseYen(str('cost'));
+  const leadRaw = str('lead_days');
+  const leadDays = leadRaw ? strictInt(leadRaw) : null;
   const note = str('note') || null;
   const rework = str('rework') || null;
-  const finishing = formData.getAll('finishing').map(String).filter((v) => FINS.includes(v));
+  const finishing = formData.getAll('finishing').filter((v): v is string => typeof v === 'string' && FINS.includes(v));
 
   if (!name) return { ok: false, message: '案件名を入力してください' };
-  if (!TYPES.includes(type)) return { ok: false, message: '種類が不正です' };
-  if (!SIZES.includes(size)) return { ok: false, message: 'サイズが不正です' };
-  if (!COLORS.includes(color)) return { ok: false, message: '色が不正です' };
-  if (!DATA_STATES.includes(dataState)) return { ok: false, message: '支給データの状態が不正です' };
-  if (!REUSES.includes(reuse)) return { ok: false, message: '流用が不正です' };
-  if (!Number.isFinite(qty) || qty <= 0) return { ok: false, message: '数量は正の整数で入力してください' };
-  if (!Number.isFinite(amount) || amount < 0) return { ok: false, message: '見積金額が不正です' };
-  if (!Number.isFinite(cost) || cost < 0) return { ok: false, message: '原価が不正です' };
-  if (leadDays !== null && (!Number.isFinite(leadDays) || leadDays < 0)) return { ok: false, message: '納期が不正です' };
+  if (name.length > NAME_MAX) return { ok: false, message: `案件名は${NAME_MAX}文字以内で入力してください` };
+  if (!oneOf(TYPE_VALUES, type)) return { ok: false, message: '種類が不正です' };
+  if (!oneOf(SIZE_VALUES, size)) return { ok: false, message: 'サイズが不正です' };
+  if (!oneOf(COLOR_VALUES, color)) return { ok: false, message: '色が不正です' };
+  if (!oneOf(DATA_STATE_VALUES, dataState)) return { ok: false, message: '支給データの状態が不正です' };
+  if (!oneOf(REUSE_VALUES, reuse)) return { ok: false, message: '流用が不正です' };
+  if (qty === null) return { ok: false, message: QTY_ERROR };
+  if (amount === null) return { ok: false, message: '見積金額は1円以上の整数で入力してください' };
+  if (cost === null) return { ok: false, message: '原価は1円以上の整数で入力してください' };
+  if (leadDays !== null && !Number.isFinite(leadDays)) return { ok: false, message: '納期は0以上の整数(営業日)で入力してください' };
+  if ((note?.length ?? 0) > MEMO_MAX) return { ok: false, message: `メモは${MEMO_MAX}文字以内で入力してください` };
+  if ((rework?.length ?? 0) > MEMO_MAX) return { ok: false, message: `手戻り事由は${MEMO_MAX}文字以内で入力してください` };
 
   return { ok: true, v: { name, type, size, paper, color, dataState, reuse, qty, amount, cost, leadDays, note, rework, finishing } };
 }
@@ -54,28 +82,12 @@ function parseForm(formData: FormData): { ok: true; v: Parsed } | { ok: false; m
 export async function saveEstimate(_prev: FormState, formData: FormData): Promise<FormState> {
   const parsed = parseForm(formData);
   if (!parsed.ok) return { ok: false, message: parsed.message };
-  const v = parsed.v;
+  const values = parsed.v;
 
-  const idRaw = (formData.get('id') as string | null)?.trim() ?? '';
+  const idField = formData.get('id');
+  const idRaw = typeof idField === 'string' ? idField.trim() : '';
   const id = idRaw ? strictInt(idRaw) : null;
   if (id !== null && (!Number.isFinite(id) || id <= 0)) return { ok: false, message: 'IDが不正です' };
-
-  const values = {
-    name: v.name,
-    type: v.type as NewEstimate['type'],
-    size: v.size as NewEstimate['size'],
-    paper: v.paper,
-    color: v.color as NewEstimate['color'],
-    qty: v.qty,
-    finishing: v.finishing,
-    dataState: v.dataState as NewEstimate['dataState'],
-    reuse: v.reuse as NewEstimate['reuse'],
-    amount: v.amount,
-    cost: v.cost,
-    leadDays: v.leadDays,
-    note: v.note,
-    rework: v.rework,
-  };
 
   try {
     if (id) {
@@ -91,11 +103,11 @@ export async function saveEstimate(_prev: FormState, formData: FormData): Promis
     }
   } catch (e) {
     console.error('saveEstimate failed', e); // 詳細はサーバログへ。画面には固定文言のみ
-    return { ok: false, message: (id ? '更新' : '登録') + 'に失敗しました。入力内容を確認し、もう一度お試しください' };
+    return { ok: false, message: (id ? '更新' : '登録') + 'に失敗しました。入力した内容は残っているので、もう一度押せます' };
   }
 
   revalidatePath('/'); // 一覧・母集団を最新化
-  return { ok: true, message: `「${v.name}」を${id ? '更新' : '登録'}しました(次回の類似検索から使えます)` };
+  return { ok: true, message: `「${values.name}」を${id ? '更新' : '登録'}しました(次回の類似検索から使えます)` };
 }
 
 // 過去見積の削除
@@ -106,7 +118,7 @@ export async function deleteEstimate(id: number): Promise<FormState> {
     if (deleted.length === 0) return { ok: false, message: '削除できませんでした(対象が見つかりません。すでに削除された可能性があります)' };
   } catch (e) {
     console.error('deleteEstimate failed', e);
-    return { ok: false, message: '削除に失敗しました。もう一度お試しください' };
+    return { ok: false, message: '削除に失敗しました。時間をおいて、もう一度押せます' };
   }
   revalidatePath('/');
   return { ok: true, message: '削除しました' };
@@ -146,14 +158,18 @@ export type RecordInput = {
   amount: number; reason: string;
 };
 
-const REASON_MAX = 300;
-
 export async function recordFinalAmount(input: unknown): Promise<FormState> {
-  // クライアントから来た値は型も中身も信用せず、1つずつ確かめる
+  // クライアントから来た値は型も中身も信用せず、1つずつ確かめる(typeof で絞り込み、`as` に頼らない)
   if (typeof input !== 'object' || input === null) return { ok: false, message: '入力が不正です' };
-  const raw = input as Record<string, unknown>;
-  const text = (k: string) => (typeof raw[k] === 'string' ? (raw[k] as string).trim() : '');
-  const wholeNumber = (k: string) => (typeof raw[k] === 'number' && Number.isInteger(raw[k]) ? (raw[k] as number) : NaN);
+  const raw = new Map(Object.entries(input));
+  const text = (k: string) => {
+    const v = raw.get(k);
+    return typeof v === 'string' ? v.trim() : '';
+  };
+  const wholeNumber = (k: string) => {
+    const v = raw.get(k);
+    return typeof v === 'number' && Number.isInteger(v) ? v : NaN;
+  };
 
   const type = text('type');
   const size = text('size');
@@ -164,17 +180,18 @@ export async function recordFinalAmount(input: unknown): Promise<FormState> {
   const qty = wholeNumber('qty');
   const amount = wholeNumber('amount');
   const reason = text('reason');
-  const finishing = Array.isArray(raw.finishing)
-    ? raw.finishing.filter((v): v is string => typeof v === 'string' && FINS.includes(v))
+  const finRaw = raw.get('finishing');
+  const finishing = Array.isArray(finRaw)
+    ? finRaw.filter((v): v is string => typeof v === 'string' && FINS.includes(v))
     : [];
 
-  if (!TYPES.includes(type)) return { ok: false, message: '種類が不正です' };
-  if (!SIZES.includes(size)) return { ok: false, message: 'サイズが不正です' };
-  if (!COLORS.includes(color)) return { ok: false, message: '色が不正です' };
-  if (!DATA_STATES.includes(dataState)) return { ok: false, message: '支給データの状態が不正です' };
-  if (!REUSES.includes(reuse)) return { ok: false, message: '流用が不正です' };
-  if (!(qty > 0 && qty <= INT4_MAX)) return { ok: false, message: '数量が不正です' };
-  if (!(amount > 0 && amount <= INT4_MAX)) return { ok: false, message: '確定金額は1円以上の整数で入力してください' };
+  if (!oneOf(TYPE_VALUES, type)) return { ok: false, message: '種類が不正です' };
+  if (!oneOf(SIZE_VALUES, size)) return { ok: false, message: 'サイズが不正です' };
+  if (!oneOf(COLOR_VALUES, color)) return { ok: false, message: '色が不正です' };
+  if (!oneOf(DATA_STATE_VALUES, dataState)) return { ok: false, message: '支給データの状態が不正です' };
+  if (!oneOf(REUSE_VALUES, reuse)) return { ok: false, message: '流用が不正です' };
+  if (parseQty(String(qty)) === null) return { ok: false, message: QTY_ERROR };
+  if (!(amount >= 1 && amount <= INT4_MAX)) return { ok: false, message: '確定金額は1円以上の整数で入力してください' };
   if (reason.length > REASON_MAX) return { ok: false, message: `補正理由は${REASON_MAX}文字以内で入力してください` };
 
   try {
@@ -194,14 +211,14 @@ export async function recordFinalAmount(input: unknown): Promise<FormState> {
         name: `【つもる記録】${type} ${size} ${color} ${qty.toLocaleString('ja-JP')}部`,
         status: 'draft',
         source: 'tool',
-        type: type as NewEstimate['type'],
-        size: size as NewEstimate['size'],
+        type,
+        size,
         paper,
-        color: color as NewEstimate['color'],
+        color,
         qty,
         finishing,
-        dataState: dataState as NewEstimate['dataState'],
-        reuse: reuse as NewEstimate['reuse'],
+        dataState,
+        reuse,
         amount,
         cost: 0,
         draftAmount: draft.amount,
@@ -211,7 +228,7 @@ export async function recordFinalAmount(input: unknown): Promise<FormState> {
     await db.update(estimates).set({ code: `E-${String(row.id).padStart(3, '0')}` }).where(eq(estimates.id, row.id));
   } catch (e) {
     console.error('recordFinalAmount failed', e);
-    return { ok: false, message: '記録に失敗しました。もう一度お試しください' };
+    return { ok: false, message: '記録に失敗しました。入力した内容は残っているので、もう一度押せます' };
   }
 
   revalidatePath('/');

@@ -55,7 +55,7 @@ flowchart LR
 | `recordFinalAmount(input)` | `{type,size,paper,color,qty,finishing,dataState,reuse,amount,reason}`(`unknown` として受け、型・範囲・選択肢を1つずつ検証。`as` で済ませない) | 用紙を `papers` で確認 → `getEstimates()`+`rank`+`buildDraft` で叩き台を再計算(類似が無ければ記録しない)→ insert(`status='draft'`,`source='tool'`,`amount`=確定,`draft_amount`=叩き台,`reason`,`cost=0`,`name='【つもる記録】{種類} {サイズ} {色} {数量}部'`)→ `code='E-{id:3桁}'` を update | estimates | `{ok, message}` |
 | `searchMemos(kw)` | 検索語 | 空なら `[]`。`%` `_` `\` をエスケープして `ilike(note) or ilike(rework) or ilike(reason)`、`limit 20` | なし | `{id, code, name, rework, note, reason, source, amount, draftAmount}[]`(記録行は `source='tool'` で判別し「【つもる記録】確定…(叩き台…)補正理由」と表示) |
 
-`parseForm` の検証(DBに触れる前に return する): 案件名が空でない / `type`・`size`・`color`・`data_state`・`reuse` が `lib/scoring.ts` の選択肢定数に含まれる / `qty` は正の整数 / `amount`・`cost` は 0 以上 / `lead_days` は空または 0 以上 / `finishing` は選択肢外を除去。数値は `src/lib/input.ts` の `strictInt`(数字のみ・int4 上限以内。`12abc` や `1e3` は不正)で解釈する。DB エラーは画面に出さず固定文言を返し、詳細は `console.error`(サーバーログ)へ。
+`parseForm` の検証(DBに触れる前に return する): 案件名が空でない・100文字まで / `type`・`size`・`color`・`data_state`・`reuse` が DB の ENUM の値(`schema.ts` の `enumValues`)に含まれる(型の絞り込み関数 `oneOf` で判定し、`as` のキャストは使わない) / `qty` は1〜1,000,000(`parseQty`) / `amount`・`cost` は1円以上 / `lead_days` は空または 0 以上 / メモ・手戻り事由は200文字まで / `finishing` は選択肢外を除去(2026-10-14・WO-016)。上限は `src/lib/input.ts` に集め、画面とサーバーで同じ値を使う。数値は `src/lib/input.ts` の `strictInt`(数字のみ・int4 上限以内。`12abc` や `1e3` は不正)で解釈する。DB エラーは画面に出さず固定文言を返し、詳細は `console.error`(サーバーログ)へ。
 
 ### 読み取りクエリ(`src/db/queries.ts`)
 
@@ -92,7 +92,7 @@ ENUM(7種): `estimate_status`(reference/draft/confirmed/issued) / `estimate_sour
 | `src/lib/input.ts` | 入力の厳密な解釈(`strictInt`・`INT4_MAX`・`escapeLike`)。`'use server'` ファイルには非同期関数しか置けないため分離 |
 | `scripts/db-snapshot.ts` | DB の控え取り(`dump`)と突き合わせ(`diff`)。**読み取り専用**。書込み試験の前後で使う |
 | `src/components/EstimateTool.tsx` | 唯一のUI。条件入力・結果・登録/編集ダイアログ・一覧ダイアログ・検索・確定記録(`'use client'`) |
-| `src/lib/scoring.ts` | フレームワーク非依存の計算: `score` / `rank` / `detect`(対象外5型) / `buildDraft` / `savings` と選択肢定数(`TYPES`…`REUSES`) |
+| `src/lib/scoring.ts` | フレームワーク非依存の計算: `score` / `rank` / `detect`(対象外5型。②は型抜きのみ) / `buildDraft`(画面の説明用に `baseQty`・`scaleClamped` も返す) と選択肢定数。`savings` は 2026-10-14 に削除(削減効果の欄の撤去)(`TYPES`…`REUSES`) |
 | `src/db/schema.ts` | Drizzle スキーマ・ENUM・型 `Estimate` / `NewEstimate` |
 | `src/db/index.ts` | `drizzle(neon(DATABASE_URL))`。未設定なら起動時に throw。接続文字列の前後の空白・引用符は除去(P-003 再発防止) |
 | `src/db/queries.ts` | 読み取りクエリ(§3) |
@@ -102,7 +102,7 @@ ENUM(7種): `estimate_status`(reference/draft/confirmed/issued) / `estimate_sour
 - DB行の型 = `src/db/schema.ts` の `Estimate`/`NewEstimate`(`$inferSelect`/`$inferInsert`)。
 - 画面で使う行の型 = `src/lib/scoring.ts` の `EstimateRow`(JOIN 後の形・`family` を持つ)。`getEstimates()` の戻りは `as EstimateRow[]` でキャストしている。
 - ENUM の選択肢が **`schema.ts`(pgEnum)と `scoring.ts`(定数配列)の2か所**にある。`scoring.ts` 側は「ENUMと一致」とコメントされているが、機械的な同期はされていない → [ISSUE-P-010](issue-log.md)
-- `saveEstimate` は `as NewEstimate['type']` 等のキャストで値を渡している(直前に許可リスト検証済み)。
+- ~~`saveEstimate` は `as NewEstimate['type']` 等のキャストで値を渡している~~ → 2026-10-14(WO-016)に ENUM の値で絞り込む関数に置き換えた。`recordFinalAmount` も `typeof` で絞り込む形にした。
 
 ## 6. 環境と実行場所
 

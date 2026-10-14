@@ -51,7 +51,8 @@ const jac = (a: string[], b: string[]) => {
   return uni ? inter / uni : 1;
 };
 export const unitOf = (r: EstimateRow) => r.amount / r.qty;
-export const marginOf = (r: EstimateRow) => ((r.amount - r.cost) / r.amount) * 100;
+// 粗利率(%)。金額0円の行は割り算ができないので null(画面では「—」。F-04 の「NaN %」を防ぐ)
+export const marginOf = (r: EstimateRow): number | null => (r.amount > 0 ? ((r.amount - r.cost) / r.amount) * 100 : null);
 
 export type Why = [string, number];
 export type Scored = { r: EstimateRow; s: number; pct: number; why: Why[] };
@@ -104,9 +105,10 @@ export function detect(q: Query): DetectHit[] {
         ['グラフィック公式 特色', 'https://www.graphic.jp/options/print_ink/trait_ink'],
       ],
     });
-  if (q.finishing.includes('型抜き') || q.finishing.includes('箔押し'))
+  // 箔押しは入れない: 箔押し名刺はネット印刷の料金表から注文できる(D59・BLIND-FC BF-13)。型抜きだけを判定する
+  if (q.finishing.includes('型抜き'))
     hits.push({
-      t: '② 特殊加工(型抜き/箔押し)',
+      t: '② 特殊加工(型抜き)',
       d: '用紙厚/寸法制限・鋭角/小孔は製造不可・折加工併用は事前見積で形状確認',
       links: [['グラフィック公式 トムソン', 'https://www.graphic.jp/options/special/thomson']],
     });
@@ -141,9 +143,11 @@ export type Draft = {
   uMin: number;
   uMax: number;
   scalePct: number;
-  marginEst: number;
+  marginEst: number | null;
   leadEst: number;
   baseUnit: number;
+  baseQty: number; // 根拠にした案件の数量の中央値(数量差の調整の基準。画面の説明用)
+  scaleClamped: boolean; // 数量差の調整が上限・下限(±25%)で止まったか(画面の説明用)
   basisIds: string[];
   katagata: string;
 };
@@ -152,13 +156,14 @@ export function buildDraft(basis: Scored[], q: Query): Draft | null {
   const units = basis.map((t) => unitOf(t.r));
   const baseUnit = median(units);
   const baseQty = median(basis.map((t) => t.r.qty));
-  let scale = Math.pow(baseQty / q.qty, 0.15);
-  scale = Math.min(1.25, Math.max(0.75, scale));
+  const scaleRaw = Math.pow(baseQty / q.qty, 0.15);
+  const scale = Math.min(1.25, Math.max(0.75, scaleRaw));
   const unitEst = baseUnit * scale;
   const suri = Math.round(unitEst * q.qty);
   const dtpH = DTP[q.dataState] ?? 0;
   const kumihan = Math.round(dtpH * HOURLY);
   const amount = suri + kumihan;
+  const margins = basis.map((t) => marginOf(t.r)).filter((m): m is number => m !== null);
   return {
     amount,
     suri,
@@ -168,20 +173,14 @@ export function buildDraft(basis: Scored[], q: Query): Draft | null {
     uMin: Math.min(...units),
     uMax: Math.max(...units),
     scalePct: (scale - 1) * 100,
-    marginEst: median(basis.map((t) => marginOf(t.r))),
+    marginEst: margins.length ? median(margins) : null,
     leadEst: median(basis.map((t) => t.r.leadDays ?? 0)),
     baseUnit,
+    baseQty,
+    scaleClamped: scale !== scaleRaw,
     basisIds: basis.map((t) => t.r.code ?? String(t.r.id)),
     katagata: q.reuse === '前回流用可' ? '¥0（既存型・版を流用）' : '別途（叩き台には含みません）',
   };
-}
-
-// ── 削減効果(仮) ──
-export function savings() {
-  const before = 30, after = 15;
-  const saveMin = before - after;
-  const perYear = (n: number) => Math.round((saveMin / 60) * HOURLY * n);
-  return { before, after, saveMin, y1000: perYear(1000), y2000: perYear(2000), y3000: perYear(3000) };
 }
 
 // 選択肢(ENUMと一致)
