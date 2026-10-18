@@ -1,6 +1,6 @@
 # HANDOVER — つもる ― 見積アシスト PoC(poc-next)
 
-作成: 2026-10-12(WO-002) / 更新: 2026-10-13(WO-003) / 状態: Phase 1 実装済み・本番公開済み(※WO-003 の変更は commit のみ・未 push)・ドキュメント整備済み
+作成: 2026-10-12(WO-002) / 更新: 2026-10-13(WO-003)・2026-10-19(WO-022) / 状態: Phase 1 実装済み・本番公開済み・ドキュメント整備済み。**WO-022(画面の全面作り直し)は commit のみ・未 push**(本番反映は受入後に PM が代表の確認を取って行う)
 > 新しい作業者(人/AI)が、この1枚と下記リンクで同じ状態から再開できることを目的にする。真実の所在はファイル(会話ではない)。
 
 ## 1. これは何か
@@ -9,7 +9,7 @@
 - 構成: Next.js 16 + Neon(Postgres)+ Drizzle + Vercel。認証なし。データは合成(仮)36件+登録分(現在38件)。
 
 ## 2. 読む順番
-1. [SPEC.md](SPEC.md) — 設計と判断(as-built)。画面の決まりは [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md)・点検の記録は [design-audit.md](design-audit.md)
+1. [SPEC.md](SPEC.md) — 設計と判断(as-built)。画面の決まりは [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md)(§0 に画面の骨格・§4 に部品とファイルの対応)・点検の記録は [design-audit.md](design-audit.md)・WO-022 の案と評価は `design-audit/`(決定案の見本は `design-audit/claude-design-v2/D1〜D5`)
 2. [architecture.md](architecture.md) — 構成図・Server Action・テーブル
 3. [issue-log.md](issue-log.md) / [change-log.md](change-log.md) — 不具合と変更の履歴
 4. [test-scenarios.md](test-scenarios.md) — 何をどこまで確認したか(スクショは `screenshots/`)
@@ -22,6 +22,7 @@
 - 不具合3件を修正(B1 登録後ダイアログ / B2 コード自動採番 / B3 Vercel のクォート)。
 - WO-002 で as-built ドキュメント6点+画面確認(スクショ12枚)を整備。`docs/SPEC.md` の公開状態の記述を修正。
 - WO-009(2026-10-13): 画面を印刷版デザインシステムに整備(DESIGN-SYSTEM.md・design-audit.md)。記録・メモ検索を常時表示に。機能・計算・DBは変更なし。
+- **WO-022(2026-10-19)**: 画面を全面的に作り直した(Claude Design の決定案 D 直し3・D86)。紺の帯+紺の条件パネル+右に叩き台と根拠、判定の帯を金額のすぐ下、根拠はたためる行の一覧、スマホの下の記録バー、一覧ダイアログを中央に、書体 Zen Kaku Gothic New。画面の部品を `src/components/estimate/` に分けた。**計算(`scoring.ts`)・Server Action・DB は変えていない**(12通りの条件で表示の値が前後一致、書き込み試験は D45 の手順で控えと全行一致)。記録: change-log CHANGE-P-020・test-scenarios「WO-022 のやり直し」・スクショ `screenshots/wo022/`・控え `backup/2026-10-18-before-WO022.json`。
 - WO-003(2026-10-13): 確定金額をDBに保存(P-005。スキーマ変更なし。新しい行を `status='draft'`・`source='tool'`・`cost=0`=原価未入力で insert)。書込み系の画面確認(T-08b・T-13〜T-16・T-20)を実施。P-003 再発防止・P-007/008/009/011 を修正、spec.html 修正。DBの控えと突き合わせツール `scripts/db-snapshot.ts` を追加。
 
 ## 4. やらなかったこと(意図的)
@@ -48,9 +49,9 @@
 cd poc-next
 npm install
 # .env.local に DATABASE_URL を設定(値は Neon の管理画面。コミットしない・チャットに貼らない)
-npm run dev            # http://localhost:3000
+npm run dev            # http://localhost:3000(next dev は AGENTS.md の注記を書き戻すことがある。確認は npm run build → npx next start を勧める)
 ```
-- 動作確認の手順は test-scenarios.md を参照。**書込み操作は本番DBに効く**(認証なし・DB共有)。書込み試験は D45 の方針(試験行に `WO003テスト` を入れる→画面から削除→`npx tsx scripts/db-snapshot.ts diff docs/backup/…json` で控えと突き合わせ)で行う。**`npm run db:seed` は全表を消すので実行しない**。
+- 動作確認の手順は test-scenarios.md を参照。**書込み操作は本番DBに効く**(認証なし・DB共有)。書込み試験は D45 の方針(試験行に `WO003テスト`・`WO022テスト` などの目印を入れる→画面から削除→`npx tsx scripts/db-snapshot.ts diff docs/backup/…json` で控えと突き合わせ)で行う。**`npm run db:seed` は全表を消すので実行しない**。
 - 本番へ出す・戻す手順は deploy-runbook.md。`DATABASE_URL` は**クォート無し**(B3)。
 - コード変更後は、architecture.md(構成・Action・テーブル)と change-log.md を同じ変更で更新する。
 
@@ -60,3 +61,4 @@ npm run dev            # http://localhost:3000
 3. 採番・ENUM のDB側集約(ISSUE-P-006・010。スキーマ変更)。
 4. 用紙の並び順(ISSUE-P-011 の別件)。
 5. (WO-001 の結果次第)提案デッキとの整合 — デッキが主張する数値・機能と、このPoCの実装範囲が合っているか。
+6. (WO-022 の評価役・ヒアリング後の候補)根拠がフルカラーばかりで特色の案件が選ばれない/3,000部に3万部の案件が混ざる/版代が「別途」で合計が軽く見える — 計算・判定の中身なので、機能の WO で扱う。類似度が同点の案件の並びが DB の返す順に左右される件も同じ(WO-022 段3 の報告)。
