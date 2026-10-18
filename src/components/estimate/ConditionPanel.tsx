@@ -109,7 +109,7 @@ export default function ConditionPanel({
             <label key={v}><input type="radio" name="cond-reuse" value={v} checked={reuse === v} onChange={() => set.setReuse(v)} />{v}</label>
           ))}</div>
         </fieldset>
-        <button type="button" className="btn primary block" onClick={onRun}>類似案件を検索して叩き台を作る</button>
+        <button type="button" className="btn primary block run" onClick={onRun}>類似案件を検索して<wbr />叩き台を作る</button>
       </div>
 
       {showMechanism && <Mechanism />}
