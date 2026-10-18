@@ -2,6 +2,7 @@
 
 // 見積画面の本体。状態・叩き台の計算の呼び出し・Server Action の呼び出しはここに集め、
 // 画面の部分は src/components/estimate/ の部品に分けている(WO-022)。
+// 並べ方は決定案 D 直し3(D86): 上に紺の帯、左に紺の条件、右に叩き台 → 根拠 → メモ検索。スマホは縦に1列。
 import { useRef, useState, useTransition } from 'react';
 import {
   type EstimateRow, type Query,
@@ -11,31 +12,37 @@ import {
 import { parseQty, QTY_ERROR } from '@/lib/input';
 import { saveEstimate, deleteEstimate, searchMemos, recordFinalAmount, type FormState } from '@/app/actions';
 import type { ToolRecord } from '@/db/queries';
-import { Kari, WEAK_PCT } from './estimate/ui';
+import { WEAK_PCT } from './estimate/ui';
 import type { Paper, MemoRow, Result, Explain } from './estimate/types';
-import ConditionPanel from './estimate/ConditionPanel';
+import { useMediaQuery, MOBILE_QUERY } from './estimate/useMediaQuery';
+import AppBar from './estimate/AppBar';
+import ConditionPanel, { Mechanism, type ConditionValues } from './estimate/ConditionPanel';
+import StaleNotice, { type Change } from './estimate/StaleNotice';
 import JudgeBand from './estimate/JudgeBand';
 import DraftPanel from './estimate/DraftPanel';
-import BasisList, { NotesBox } from './estimate/BasisList';
+import BasisList from './estimate/BasisList';
 import RecordPanel from './estimate/RecordPanel';
 import MemoSearch from './estimate/MemoSearch';
+import MobileActionBar from './estimate/MobileActionBar';
 import EstimateFormDialog from './estimate/EstimateFormDialog';
 import ListDialog from './estimate/ListDialog';
 
 // 用紙の既定(ISSUE-P-011): チラシ既定条件に合う一般的な用紙。辞書に無ければ先頭にフォールバック
 const DEFAULT_PAPER = 'コート90';
+const DEFAULT_QTY = '3000';
 
 export default function EstimateTool({ estimates, papers, records }: { estimates: EstimateRow[]; papers: Paper[]; records: ToolRecord[] }) {
   const paperFamily = new Map(papers.map((p) => [p.name, p.family]));
   const paperNames = papers.map((p) => p.name);
   const defaultPaper = paperNames.includes(DEFAULT_PAPER) ? DEFAULT_PAPER : (paperNames[0] ?? '');
+  const isMobile = useMediaQuery(MOBILE_QUERY);
 
   // ── 入力 ──
   const [type, setType] = useState(TYPES[0]);
   const [size, setSize] = useState(SIZES[0]);
   const [paper, setPaper] = useState(defaultPaper);
   const [color, setColor] = useState(COLORS[0]);
-  const [qty, setQty] = useState('3000');
+  const [qty, setQty] = useState(DEFAULT_QTY);
   const [qtyErr, setQtyErr] = useState('');
   const [ds, setDs] = useState(DATA_STATES[0]);
   const [reuse, setReuse] = useState(REUSES[0]);
@@ -43,13 +50,22 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
   // 画面にはチェックが見えるのに叩き台に渡らないことがあった(WO-016・対象外の表示の件)
   const finRef = useRef<HTMLFieldSetElement>(null);
   const readFin = () => FINS.filter((v) => finRef.current?.querySelector<HTMLInputElement>(`input[value="${v}"]`)?.checked);
+  // 表示(「変更」の札・条件が変わった帯)のためだけの写し。叩き台を作るときは上の readFin() で DOM から読む
+  const [finView, setFinView] = useState<string[]>([]);
 
   const [resPaper, setResPaper] = useState(''); // 叩き台を出した時点の用紙名(記録時に送る)
   const [res, setRes] = useState<Result | null>(null);
-  function run() {
+  // 画面の開閉の状態(表示だけ)
+  const [condOpen, setCondOpen] = useState(true);                   // スマホで条件の入力欄を開いているか
+  const [basisOpen, setBasisOpen] = useState<boolean | null>(null); // 根拠の欄(null=まだ叩き台を作っていない)
+  const [openRows, setOpenRows] = useState<Set<number>>(new Set());
+  const [recorded, setRecorded] = useState(false);                  // いまの叩き台を記録したか
+
+  // 叩き台を作る。数量が不正なら false
+  function run(): boolean {
     // 数量は黙って直さない(F-02・F-03)。不正なら叩き台を出さず、前の結果も消して入力と結果が食い違わないようにする
     const q1 = parseQty(qty);
-    if (q1 === null) { setQtyErr(QTY_ERROR); setRes(null); return; }
+    if (q1 === null) { setQtyErr(QTY_ERROR); setRes(null); return false; }
     setQtyErr('');
     const q: Query = {
       type, size, family: paperFamily.get(paper) ?? '', color,
@@ -58,6 +74,25 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
     const { basis, strong } = rank(q, estimates);
     setResPaper(paper);
     setRes({ q, detect: detect(q), basis, strong, draft: buildDraft(basis, q) });
+    // 表示の初期化: いちばん似た1件だけ行を開く・記録の札を「未記録」に戻す
+    const top = basis.length ? basis.reduce((a, b) => (b.pct > a.pct ? b : a)) : null;
+    setOpenRows(new Set(top ? [top.r.id] : []));
+    setRecorded(false);
+    return true;
+  }
+  // ボタン・Enter から叩き台を作る。スマホでは条件をたたみ、叩き台の見出しへ移る(F-25)
+  function runAndShow() {
+    if (!run()) return;
+    if (basisOpen === null) setBasisOpen(!isMobile); // 最初の1回だけ: PC は根拠を開く・スマホはたたむ
+    if (isMobile) {
+      setCondOpen(false);
+      requestAnimationFrame(() => {
+        const h = document.getElementById('h-draft');
+        if (!h) return;
+        h.scrollIntoView({ block: 'start' });
+        h.focus({ preventScroll: true });
+      });
+    }
   }
 
   // ── 登録/編集フォーム(Server Action・登録後も閉じずにメッセージ表示) ──
@@ -67,9 +102,34 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
   const [saving, startSave] = useTransition();
   const [newNonce, setNewNonce] = useState(0); // 新規フォームを初期化するための再マウントキー
   const formKey = editing ? `edit-${editing.id}` : `new-${newNonce}`;
+  const formOpener = useRef<HTMLElement | null>(null); // 閉じたときにフォーカスを戻す先(F-23)
 
-  function openCreate() { setEditing(null); setSaveMsg(null); setNewNonce((n) => n + 1); dialogRef.current?.showModal(); }
-  function openEdit(r: EstimateRow) { listRef.current?.close(); setEditing(r); setSaveMsg(null); dialogRef.current?.showModal(); }
+  // ── 一覧・照会・削除 ──
+  const listRef = useRef<HTMLDialogElement>(null);
+  const filterRef = useRef<HTMLInputElement>(null);
+  const listOpener = useRef<HTMLElement | null>(null);
+  const skipListReturn = useRef(false); // 一覧から登録・編集へ移るときは、一覧を閉じてもフォーカスを戻さない
+  const [filter, setFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deleting, startDelete] = useTransition();
+  const [listMsg, setListMsg] = useState<FormState>(null);
+  const [recMsg, setRecMsg] = useState<FormState>(null);
+
+  // 開いたら最初の入力欄へ(F-23: 以前はフォーカスが画面の外に残った)
+  const focusFirstField = () => requestAnimationFrame(() => dialogRef.current?.querySelector<HTMLInputElement>('input[name="name"]')?.focus());
+  // 一覧から登録・編集へ移るときは一覧を閉じ、閉じたときの戻り先は一覧を開いたボタンにする
+  function leaveListFor() {
+    if (listRef.current?.open) {
+      skipListReturn.current = true;
+      formOpener.current = listOpener.current;
+      listRef.current.close();
+    } else {
+      formOpener.current = document.activeElement as HTMLElement | null;
+    }
+  }
+  function openCreate() { leaveListFor(); setEditing(null); setSaveMsg(null); setNewNonce((n) => n + 1); dialogRef.current?.showModal(); focusFirstField(); }
+  function openEdit(r: EstimateRow) { leaveListFor(); setEditing(r); setSaveMsg(null); dialogRef.current?.showModal(); focusFirstField(); }
 
   function onSaveSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -79,19 +139,21 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
     startSave(async () => {
       const r = await saveEstimate(null, fd);
       setSaveMsg(r);
-      dialogRef.current?.scrollTo({ top: 0 }); // 結果の文はダイアログの上に出すので、上まで戻して見せる(F-12)
+      dialogRef.current?.querySelector('.dlg-scroll')?.scrollTo({ top: 0 }); // 結果の文はダイアログの上に出すので、上まで戻して見せる(F-12)
       if (r?.ok && !isEdit) setNewNonce((n) => n + 1); // 新規登録が成功したら、次の入力用にフォームだけ初期化(画面は閉じない)
     });
   }
 
-  // ── 一覧・照会・削除 ──
-  const listRef = useRef<HTMLDialogElement>(null);
-  const [filter, setFilter] = useState('');
-  const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [deleting, startDelete] = useTransition();
-  const [listMsg, setListMsg] = useState<FormState>(null);
-  const [recMsg, setRecMsg] = useState<FormState>(null);
-  function openList() { setListMsg(null); setFilter(''); setDeletingId(null); listRef.current?.showModal(); }
+  function openList() {
+    listOpener.current = document.activeElement as HTMLElement | null;
+    setListMsg(null); setFilter(''); setTypeFilter(''); setDeletingId(null);
+    listRef.current?.showModal();
+    requestAnimationFrame(() => filterRef.current?.focus());
+  }
+  function onListClose() {
+    if (skipListReturn.current) { skipListReturn.current = false; return; }
+    listOpener.current?.focus();
+  }
   function doDelete(id: number, fromRecords = false) {
     startDelete(async () => {
       const r = await deleteEstimate(id);
@@ -119,11 +181,18 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
   const [recAmount, setRecAmount] = useState('');
   const [recReason, setRecReason] = useState('');
   const [recording, startRecord] = useTransition();
+  const [histOpen, setHistOpen] = useState(false);
+  const recAmountRef = useRef<HTMLInputElement>(null);
   const canRecord = !!res?.draft;
+  // エラーのときは確定金額の欄へ移る(スマホの下の操作バーから押したとき、エラーがバーの陰にならないように)
+  const showAmountField = () => requestAnimationFrame(() => {
+    recAmountRef.current?.scrollIntoView({ block: 'center' });
+    recAmountRef.current?.focus({ preventScroll: true });
+  });
   function record() {
     if (!res || !res.draft) return;
     const amount = /^\d+$/.test(recAmount.trim()) ? Number(recAmount.trim()) : 0;
-    if (amount < 1) { setRecMsg({ ok: false, message: '確定金額は1円以上の整数で入力してください(例: 31000)' }); return; }
+    if (amount < 1) { setRecMsg({ ok: false, message: '確定金額は1円以上の整数で入力してください(例: 13500)' }); showAmountField(); return; }
     startRecord(async () => {
       const r = await recordFinalAmount({
         type: res.q.type, size: res.q.size, paper: resPaper, color: res.q.color, qty: res.q.qty,
@@ -131,7 +200,8 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
         amount, reason: recReason,
       });
       setRecMsg(r);
-      if (r?.ok) { setRecAmount(''); setRecReason(''); }
+      if (r?.ok) { setRecAmount(''); setRecReason(''); setRecorded(true); setHistOpen(true); }
+      else showAmountField();
     });
   }
 
@@ -145,87 +215,111 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
   const weak = !!res?.draft && (!sameType || topPct < WEAK_PCT);
   const explain: Explain = { topPct, best, bestGap, sameType, weak };
 
-  return (
-    <div className="wrap">
-      <header className="topbar">
-        <div className="brand">
-          <span className="mark" aria-hidden="true">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M10 2.6 L17 6.2 L10 9.8 L3 6.2 Z" />
-              <path d="M3 10.2 L10 13.8 L17 10.2" />
-              <path d="M3 13.9 L10 17.5 L17 13.9" />
-            </svg>
-          </span>
-          <div>
-            <h1>つもる</h1>
-            <div className="tagline">過去案件から引く、見積の下書き</div>
-          </div>
-        </div>
-        <div className="ctx">
-          <span className="chip line"><Kari /> 合成データ・金額は例示</span>
-          <span className="chip line">対象: チラシ・DM・名刺・ポスター等の商業印刷</span>
-          <span className="chip line">登録済み {estimates.length}件</span>
-        </div>
-      </header>
+  // ── 表示用: 初期値との違い・叩き台を出した条件・条件の食い違い ──
+  const values: ConditionValues = { type, size, paper, color, qty, ds, reuse };
+  const defaults: ConditionValues = { type: TYPES[0], size: SIZES[0], paper: defaultPaper, color: COLORS[0], qty: DEFAULT_QTY, ds: DATA_STATES[0], reuse: REUSES[0] };
+  const finText = (f: string[]) => (f.length ? f.join('・') : '加工なし');
+  const qtyText = (raw: string) => { const n = parseQty(raw); return n === null ? (raw.trim() || '(空)') : `${n.toLocaleString()}部`; };
+  const condItems = res ? [
+    { value: res.q.type, changed: res.q.type !== defaults.type },
+    { value: res.q.size, changed: res.q.size !== defaults.size },
+    { value: resPaper, changed: resPaper !== defaults.paper },
+    { value: res.q.color, changed: res.q.color !== defaults.color },
+    { value: `${res.q.qty.toLocaleString()}部`, changed: String(res.q.qty) !== defaults.qty },
+    { value: finText(res.q.finishing), changed: res.q.finishing.length > 0 },
+    { value: res.q.dataState, changed: res.q.dataState !== defaults.ds },
+    { value: res.q.reuse, changed: res.q.reuse !== defaults.reuse },
+  ] : [];
+  const changes: Change[] = [];
+  if (res) {
+    const add = (label: string, from: string, to: string) => { if (from !== to) changes.push({ label, from, to }); };
+    add('種類', res.q.type, type);
+    add('サイズ', res.q.size, size);
+    add('用紙', resPaper, paper);
+    add('色', res.q.color, color);
+    add('数量', `${res.q.qty.toLocaleString()}部`, qtyText(qty));
+    add('加工', finText(res.q.finishing), finText(finView));
+    add('支給データ', res.q.dataState, ds);
+    add('流用', res.q.reuse, reuse);
+  }
 
-      <main className="grid">
+  const recordInDraft = canRecord && !isMobile; // PC は叩き台の中(内訳の右)に記録欄を置く
+  const recordPanel = (standalone: boolean) => (
+    <RecordPanel
+      res={res} canRecord={canRecord} recorded={recorded} standalone={standalone} showButton={!(isMobile && canRecord)}
+      recAmount={recAmount} setRecAmount={setRecAmount} recReason={recReason} setRecReason={setRecReason}
+      recording={recording} onRecord={record} recMsg={recMsg} amountRef={recAmountRef}
+      records={records} histOpen={histOpen} setHistOpen={setHistOpen}
+      deletingId={deletingId} setDeletingId={setDeletingId} deleting={deleting} onDelete={(id) => doDelete(id, true)}
+    />
+  );
+  const draftAmount = res?.draft?.amount ?? null;
+  const showBar = isMobile && draftAmount !== null;
+
+  return (
+    <div className={`app${showBar ? ' has-mbar' : ''}`}>
+      <AppBar count={estimates.length} onOpenList={openList} onOpenCreate={openCreate} />
+
+      <div className="layout">
         <ConditionPanel
-          values={{ type, size, paper, color, qty, ds, reuse }}
+          values={values} defaults={defaults}
           set={{ setType, setSize, setPaper, setColor, setQty, setDs, setReuse }}
-          papers={papers} qtyErr={qtyErr} finRef={finRef}
-          onRun={run} onOpenCreate={openCreate} onOpenList={openList}
+          papers={papers} qtyErr={qtyErr} finRef={finRef} finView={finView} onFinChange={() => setFinView(readFin())}
+          onRun={runAndShow}
+          collapsed={isMobile && !!res && !condOpen} onExpand={() => setCondOpen(true)} hasResult={!!res}
+          summary={condItems.map((c, i) => <span key={i}>{i > 0 && ' / '}{c.changed ? <b>{c.value}</b> : c.value}</span>)}
+          showMechanism={!isMobile}
         />
 
-        <div>
-          {/* 結果 */}
+        <main className="out" aria-label="叩き台と根拠">
+          {res && <StaleNotice changes={changes} onRerun={runAndShow} />}
+
           {!res ? (
-            <div className="placeholder">左で条件を入れて「叩き台を作る」を押すと、判定・叩き台・類似案件がここに表示されます。</div>
+            <section className="pane" aria-labelledby="h-empty">
+              <div className="empty">
+                <h2 id="h-empty" className="empty-title">まだ叩き台はありません</h2>
+                <p className="small">{isMobile ? '上' : '左'}の条件を入れて「類似案件を検索して叩き台を作る」を押すと、過去見積 {estimates.length}件から条件の近い案件を探して、叩き台と内訳、その根拠をここに出します。</p>
+              </div>
+              <ul className="ghost-rows" aria-hidden="true">
+                <li><div className="ghost w55" /><div className="ghost" /><div className="ghost" /></li>
+                <li><div className="ghost w40" /><div className="ghost" /><div className="ghost" /></li>
+              </ul>
+            </section>
           ) : (
-            <div className="results">
-              {/* 叩き台を出した条件(画面の入力と結果が食い違っていないかを、その場で確かめられるように) */}
-              <p className="cond">この条件で出しました: {res.q.type} / {res.q.size} / {resPaper} / {res.q.color} / {res.q.qty.toLocaleString()}部 / 加工: {res.q.finishing.length ? res.q.finishing.join('・') : 'なし'} / {res.q.dataState} / {res.q.reuse}</p>
-
-              {/* 判定(該当したときだけ、結果のいちばん上に全幅で出す) */}
-              <JudgeBand hits={res.detect} />
-
-              <div className="rescol">
-                <DraftPanel res={res} ex={explain} />
-                <NotesBox rows={notesRows} />
-              </div>
-
-              <div className="rescol">
-                <BasisList basis={res.basis} />
-              </div>
-            </div>
+            <>
+              {/* 叩き台が出ないとき(根拠が0件)も、判定に当たれば出力の先頭に帯を出す */}
+              {!res.draft && <JudgeBand hits={res.detect} />}
+              <DraftPanel res={res} ex={explain} condItems={condItems} recordSlot={recordInDraft ? recordPanel(false) : null} />
+              <BasisList
+                basis={res.basis} notesRows={notesRows} total={estimates.length} sameType={sameType}
+                bestId={best?.r.id ?? null} open={basisOpen ?? !isMobile} onToggle={setBasisOpen}
+                openRows={openRows}
+                onToggleRow={(id) => setOpenRows((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; })}
+              />
+            </>
           )}
 
-          {/* 記録と検索(結果の有無に関わらず常に表示) */}
-          <div className="band">
-            <RecordPanel
-              res={res} resPaper={resPaper} canRecord={canRecord}
-              recAmount={recAmount} setRecAmount={setRecAmount} recReason={recReason} setRecReason={setRecReason}
-              recording={recording} onRecord={record} recMsg={recMsg}
-              records={records} deletingId={deletingId} setDeletingId={setDeletingId}
-              deleting={deleting} onDelete={(id) => doDelete(id, true)}
-            />
-            <MemoSearch kw={kw} setKw={setKw} onSearch={onSearch} isSearching={isSearching} searchRes={searchRes} searchedKw={searchedKw} kwTried={kwTried} />
-          </div>
-        </div>
-      </main>
+          {/* 記録欄は常に出す(D60)。PC で叩き台があるときは叩き台の中、それ以外はここ */}
+          {!recordInDraft && recordPanel(true)}
 
-      <div className="foot">
-        仕組み: 引合いの特徴を過去見積と重み付きで突き合わせ(満点122点→100%正規化)、同種の類似上位から単価中央値×数量スケールで叩き台を出す、説明できる方式です。ネット印刷で自動で完結しない条件(人の確認・個別見積が入る)の判定は、各社公式の入稿ガイド・仕様・FAQ に基づきます。データは登録済みの過去見積から取得しています。
+          <MemoSearch kw={kw} setKw={setKw} onSearch={onSearch} isSearching={isSearching} searchRes={searchRes} searchedKw={searchedKw} kwTried={kwTried} />
+          {isMobile && <Mechanism light />}
+        </main>
       </div>
+
+      {showBar && draftAmount !== null && <MobileActionBar amount={draftAmount} recording={recording} onRecord={record} />}
 
       <EstimateFormDialog
         dialogRef={dialogRef} formKey={formKey} editing={editing} saveMsg={saveMsg} saving={saving}
         papers={papers} defaultPaper={defaultPaper} onSubmit={onSaveSubmit}
+        onClose={() => formOpener.current?.focus()}
       />
 
       <ListDialog
-        listRef={listRef} estimates={estimates} filter={filter} setFilter={setFilter} listMsg={listMsg}
+        listRef={listRef} filterRef={filterRef} estimates={estimates}
+        filter={filter} setFilter={setFilter} typeFilter={typeFilter} setTypeFilter={setTypeFilter} listMsg={listMsg}
         deletingId={deletingId} setDeletingId={setDeletingId} deleting={deleting} onDelete={(id) => doDelete(id)}
-        onEdit={openEdit} onOpenCreate={openCreate}
+        onEdit={openEdit} onOpenCreate={openCreate} onClose={onListClose}
       />
     </div>
   );

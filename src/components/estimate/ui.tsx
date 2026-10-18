@@ -45,15 +45,25 @@ export function Msg({ m }: { m: FormState }) {
   );
 }
 
-// 削除の確認(その場に出す。何を消すかを書き、動詞のボタンにする)
+// 削除の確認(その場に出す。何を消すかを書き、動詞のボタンにする)。
+// 並びは「やめる」が左・「削除する」が右(WO-022・評価役の指摘。取り消しを先に置く)
 export function DeleteConfirm({ label, deleting, onConfirm, onCancel }: {
   label: string; deleting: boolean; onConfirm: () => void; onCancel: () => void;
 }) {
   return (
     <>
       <span className="confirm">{label} を削除しますか?</span>
-      <button type="button" className="btn text danger" disabled={deleting} onClick={onConfirm}>{deleting ? '削除中…' : '削除する'}</button>
-      <button type="button" className="btn text" onClick={onCancel}>やめる</button>
+      <span className="acts">
+        <button type="button" className="btn text" onClick={onCancel}>やめる</button>
+        <button type="button" className="btn danger-outline" disabled={deleting} onClick={onConfirm}>
+          <BusyLabel busy={deleting} busyText="削除中…" text="削除する" />
+        </button>
+      </span>
     </>
   );
+}
+
+// 実行中のボタンの中身(回る印+「…中」の字。印は飾りなので読み上げない)
+export function BusyLabel({ busy, busyText, text }: { busy: boolean; busyText: string; text: string }) {
+  return busy ? <><span className="spin" aria-hidden="true" />{busyText}</> : <>{text}</>;
 }
