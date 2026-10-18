@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>案A 登録・編集 スマホ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FFFFFF}
+a{color:#17233D}a:hover{color:#24365C}
+.t{font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;color:#374151;font-size:16px;line-height:1.7;font-variant-numeric:tabular-nums}
+.t *{box-sizing:border-box}
+.t h1,.t h2,.t h3,.t p{margin:0}
+.btn{font-family:inherit;font-weight:700;font-size:16px;line-height:1.3;min-height:44px;padding:8px 14px;border-radius:6px;border:1px solid #6B7280;background:#FFFFFF;color:#17233D;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn-p{background:#17233D;border-color:#17233D;color:#FFFFFF}
+.lbl{font-size:14px;font-weight:700;color:#2B3444;line-height:1.4;display:flex;gap:8px;align-items:center}
+.req{font-size:14px;font-weight:700;color:#B84A14}
+.opt{font-size:14px;font-weight:400;color:#6B7280}
+.inp{font-family:inherit;font-size:16px;height:44px;border:1px solid #6B7280;border-radius:6px;background:#FFFFFF;color:#2B3444;padding:0 12px;width:100%}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.small{font-size:14px;line-height:1.6}
+.mut{color:#6B7280}
+.tg{display:flex;align-items:center;min-height:44px;gap:6px;padding:0 10px;border:1px solid #6B7280;border-radius:6px;background:#FFFFFF;font-size:16px;color:#2B3444;white-space:nowrap}
+.tg input{width:20px;height:20px;margin:0;accent-color:#17233D}
+</style>
+</helmet>
+<div class="t" style="width: 375px; min-height: 100%; background: #FFFFFF; display: flex; flex-direction: column">
+  <header style="background: #FFFFFF; border-bottom: 1px solid #D6DCE8; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 8px">
+    <h2 style="font-size: 18px; color: #17233D">過去見積を登録する</h2>
+    <button class="btn" type="button">閉じる</button>
+  </header>
+  <form style="padding: 16px; display: flex; flex-direction: column; gap: 14px" aria-label="過去見積の登録">
+    <p class="small" role="alert" style="background: #FDEAEA; color: #8A2E2E; border-radius: 6px; padding: 10px 12px; display: flex; gap: 8px"><b aria-hidden="true">!</b><span><b>エラー:</b> 原価は1円以上の整数で入力してください</span></p>
+    <p class="small mut"><span class="req">必須</span> の欄を入れると登録できます。登録した案件は、次の類似検索から使われます。</p>
+    <label class="fld"><span class="lbl">案件名 <span class="req">必須</span></span><input class="inp" type="text" value="〇〇スーパー B4折込チラシ"></label>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+      <label class="fld"><span class="lbl">種類 <span class="req">必須</span></span><select class="inp"><option>チラシ</option></select></label>
+      <label class="fld"><span class="lbl">サイズ <span class="req">必須</span></span><select class="inp"><option>B4</option></select></label>
+      <label class="fld"><span class="lbl">用紙 <span class="req">必須</span></span><select class="inp"><option>コート90</option></select></label>
+      <label class="fld"><span class="lbl">色 <span class="req">必須</span></span><select class="inp"><option>両面4C</option></select></label>
+      <label class="fld"><span class="lbl">数量 <span class="req">必須</span></span><input class="inp" type="number" value="5000"></label>
+      <label class="fld"><span class="lbl">納期 <span class="opt">営業日</span></span><input class="inp" type="number" placeholder="例: 5"></label>
+      <label class="fld"><span class="lbl">見積金額(税抜) <span class="req">必須</span></span><input class="inp" type="number" value="19000"></label>
+      <label class="fld"><span class="lbl" style="color: #8A2E2E">原価 <span class="req">必須</span></span><input class="inp" type="number" placeholder="例: 8000" aria-invalid="true" style="border: 2px solid #8A2E2E"></label>
+    </div>
+    <p class="small" style="color: #8A2E2E; margin-top: -8px">! 原価は1円以上の整数で入力してください</p>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+      <label class="fld"><span class="lbl">支給データ <span class="req">必須</span></span><select class="inp"><option>完全データ</option></select></label>
+      <label class="fld"><span class="lbl">流用 <span class="req">必須</span></span><select class="inp"><option>前回流用可</option></select></label>
+    </div>
+    <fieldset style="border: 0; padding: 0; margin: 0">
+      <legend class="lbl" style="margin-bottom: 4px">加工 <span class="opt">あてはまるものだけ</span></legend>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px">
+        <label class="tg"><input type="checkbox">折り</label><label class="tg"><input type="checkbox">中綴じ</label><label class="tg"><input type="checkbox">無線綴じ</label><label class="tg"><input type="checkbox">型抜き</label><label class="tg"><input type="checkbox">箔押し</label><label class="tg"><input type="checkbox">PP加工</label>
+      </div>
+    </fieldset>
+    <label class="fld"><span class="lbl">メモ <span class="opt">検索の対象</span></span><input class="inp" type="text" placeholder="毎週リピート 等"></label>
+    <label class="fld"><span class="lbl">手戻り事由 <span class="opt">あれば・検索の対象</span></span><input class="inp" type="text" placeholder="特色番号の指定漏れで刷り直し 等"></label>
+  </form>
+  <footer style="background: #FFFFFF; border-top: 1px solid #D6DCE8; padding: 10px 16px; display: grid; grid-template-columns: 1fr 2fr; gap: 8px">
+    <button class="btn" type="button">閉じる</button>
+    <button class="btn btn-p" type="button">登録する</button>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":375,"height":1087}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

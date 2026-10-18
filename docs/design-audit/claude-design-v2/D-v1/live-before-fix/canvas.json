@@ -1,0 +1,314 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "A2-main-sp.dc.html": {
+      "h": 3509,
+      "page": "p0",
+      "title": "A — 主画面 スマホ",
+      "w": 375,
+      "x": 0,
+      "y": 2300
+    },
+    "A3-list-pc.dc.html": {
+      "expand": "fill",
+      "h": 1316,
+      "page": "pA",
+      "title": "A — 過去見積の一覧 PC",
+      "w": 1280,
+      "x": 0,
+      "y": 0
+    },
+    "A4-form-sp.dc.html": {
+      "h": 1087,
+      "page": "pA",
+      "title": "A — 登録・編集 スマホ",
+      "w": 375,
+      "x": 1360,
+      "y": 0
+    },
+    "A5-states-pc.dc.html": {
+      "expand": "fill",
+      "h": 1097,
+      "page": "pA",
+      "title": "A — 状態の一覧",
+      "w": 1280,
+      "x": 1815,
+      "y": 0
+    },
+    "B1-main-pc.dc.html": {
+      "expand": "fill",
+      "h": 1952,
+      "page": "p0",
+      "title": "B 根拠が先に立つ — 主画面 PC",
+      "w": 1280,
+      "x": 1360,
+      "y": 0
+    },
+    "B2-main-sp.dc.html": {
+      "h": 3343,
+      "page": "p0",
+      "title": "B — 主画面 スマホ",
+      "w": 375,
+      "x": 1360,
+      "y": 2300
+    },
+    "B3-list-pc.dc.html": {
+      "expand": "fill",
+      "h": 1141,
+      "page": "pB",
+      "title": "B — 過去見積の一覧 PC",
+      "w": 1280,
+      "x": 0,
+      "y": 0
+    },
+    "B4-form-sp.dc.html": {
+      "h": 1348,
+      "page": "pB",
+      "title": "B — 登録・編集 スマホ",
+      "w": 375,
+      "x": 1360,
+      "y": 0
+    },
+    "B5-states-pc.dc.html": {
+      "expand": "fill",
+      "h": 1103,
+      "page": "pB",
+      "title": "B — 状態の一覧",
+      "w": 1280,
+      "x": 1815,
+      "y": 0
+    },
+    "C1-main-pc.dc.html": {
+      "expand": "fill",
+      "h": 1705,
+      "page": "p0",
+      "title": "C 校正紙の机 — 主画面 PC",
+      "w": 1280,
+      "x": 2720,
+      "y": 0
+    },
+    "C2-main-sp.dc.html": {
+      "h": 2965,
+      "page": "p0",
+      "title": "C — 主画面 スマホ",
+      "w": 375,
+      "x": 2720,
+      "y": 2300
+    },
+    "C3-list-pc.dc.html": {
+      "expand": "fill",
+      "h": 1158,
+      "page": "pC",
+      "title": "C — 過去見積の一覧 PC",
+      "w": 1280,
+      "x": 0,
+      "y": 0
+    },
+    "C4-form-sp.dc.html": {
+      "h": 1286,
+      "page": "pC",
+      "title": "C — 登録・編集 スマホ",
+      "w": 375,
+      "x": 1360,
+      "y": 0
+    },
+    "C5-states-pc.dc.html": {
+      "expand": "fill",
+      "h": 1063,
+      "page": "pC",
+      "title": "C — 状態の一覧",
+      "w": 1280,
+      "x": 1815,
+      "y": 0
+    },
+    "D1-main-pc.dc.html": {
+      "expand": "fill",
+      "h": 2337,
+      "page": "pD",
+      "title": "D 決定案 — 主画面 PC",
+      "w": 1280,
+      "x": 0,
+      "y": 0
+    },
+    "D2-main-sp.dc.html": {
+      "h": 3547,
+      "page": "pD",
+      "title": "D — 主画面 スマホ",
+      "w": 375,
+      "x": 1360,
+      "y": 0
+    },
+    "D3-list-pc.dc.html": {
+      "expand": "fill",
+      "h": 1402,
+      "page": "pD",
+      "title": "D — 過去見積の一覧 PC",
+      "w": 1280,
+      "x": 0,
+      "y": 3900
+    },
+    "D4-form-sp.dc.html": {
+      "h": 1533,
+      "page": "pD",
+      "title": "D — 登録・編集 スマホ",
+      "w": 375,
+      "x": 1360,
+      "y": 3900
+    },
+    "D5-states-pc.dc.html": {
+      "expand": "fill",
+      "h": 1281,
+      "page": "pD",
+      "title": "D — 状態の見本",
+      "w": 1280,
+      "x": 1815,
+      "y": 3900
+    },
+    "Main.dc.html": {
+      "expand": "fill",
+      "h": 1911,
+      "page": "p0",
+      "title": "A 整った作業台 — 主画面 PC",
+      "w": 1280,
+      "x": 0,
+      "y": 0
+    },
+    "Piece-yjsh.dc.html": {
+      "frameless": true,
+      "h": 1467,
+      "title": "Main",
+      "w": 375,
+      "x": 1814,
+      "y": 568
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-10-15T09:00:00Z",
+    "v": 1
+  },
+  "designSystems": [
+    {
+      "artifact": "https://claude.ai/artifact/DjxmLhLLxU5PNhwAY5tove",
+      "copiedAt": "2026-10-15T09:00:00Z",
+      "namespace": "insatsu",
+      "title": "印刷版デザインシステム",
+      "version": "1792054399-06e6"
+    }
+  ],
+  "launch": {
+    "page": "pD",
+    "view": "canvas"
+  },
+  "notes": {
+    "t0a": {
+      "kind": "title1",
+      "maxW": 4000,
+      "page": "p0",
+      "text": "主画面 PC 1280(特色1Cの例・数字は今の計算の値)",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "t0b": {
+      "kind": "title1",
+      "maxW": 4000,
+      "page": "p0",
+      "text": "主画面 スマホ 375(同じ条件)",
+      "w": 240,
+      "x": 0,
+      "y": 2000
+    },
+    "tA": {
+      "kind": "title1",
+      "maxW": 3100,
+      "page": "pA",
+      "text": "案A 整った作業台 — 一覧・登録・状態",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "tB": {
+      "kind": "title1",
+      "maxW": 3100,
+      "page": "pB",
+      "text": "案B 根拠が先に立つ — 一覧・登録・状態",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "tC": {
+      "kind": "title1",
+      "maxW": 3100,
+      "page": "pC",
+      "text": "案C 校正紙の机 — 一覧・登録・状態",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "tD1": {
+      "kind": "title1",
+      "maxW": 1735,
+      "page": "pD",
+      "text": "案D 決定案(B の主画面+C のスマホ・紺の面)— 主画面",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "tD2": {
+      "kind": "title1",
+      "maxW": 3100,
+      "page": "pD",
+      "text": "案D — 一覧・登録・状態",
+      "w": 240,
+      "x": 0,
+      "y": 3600
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "B1-main-pc.dc.html",
+    "C1-main-pc.dc.html",
+    "A2-main-sp.dc.html",
+    "B2-main-sp.dc.html",
+    "C2-main-sp.dc.html",
+    "A3-list-pc.dc.html",
+    "A4-form-sp.dc.html",
+    "A5-states-pc.dc.html",
+    "B3-list-pc.dc.html",
+    "B4-form-sp.dc.html",
+    "B5-states-pc.dc.html",
+    "C3-list-pc.dc.html",
+    "C4-form-sp.dc.html",
+    "C5-states-pc.dc.html",
+    "D1-main-pc.dc.html",
+    "D2-main-sp.dc.html",
+    "D3-list-pc.dc.html",
+    "D4-form-sp.dc.html",
+    "D5-states-pc.dc.html",
+    "Piece-yjsh.dc.html"
+  ],
+  "pages": [
+    {
+      "id": "pD",
+      "name": "D 決定案(B+C)"
+    },
+    {
+      "id": "p0",
+      "name": "0. 並べて見る"
+    },
+    {
+      "id": "pA",
+      "name": "A 整った作業台"
+    },
+    {
+      "id": "pB",
+      "name": "B 根拠が先に立つ"
+    },
+    {
+      "id": "pC",
+      "name": "C 校正紙の机"
+    }
+  ],
+  "title": "つもる 画面3案"
+}

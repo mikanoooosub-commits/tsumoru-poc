@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>案D 主画面 PC</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F7F8FB}
+a{color:#17233D}a:hover{color:#24365C}
+.t{font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;color:#374151;font-size:16px;line-height:1.6;font-variant-numeric:tabular-nums}
+.t *{box-sizing:border-box}
+.t h1,.t h2,.t h3,.t p,.t ul,.t ol,.t dl,.t dd{margin:0}
+.t ul,.t ol{padding:0;list-style:none}
+.bar{background:#17233D;color:#E7ECF6;min-height:56px;display:flex;align-items:stretch;gap:20px;padding:0 20px;border-bottom:1px solid #24365C;flex-wrap:wrap}
+.nav{font-family:inherit;background:transparent;border:0;border-bottom:3px solid transparent;color:#AEB9D4;font-size:14px;font-weight:700;padding:0 12px;min-height:44px;display:flex;align-items:center;gap:6px}
+.nav[aria-current]{color:#FFFFFF;border-bottom-color:#E8703A}
+.btn{font-family:inherit;font-weight:700;font-size:14px;line-height:1.3;min-height:44px;padding:8px 16px;border-radius:6px;border:1px solid #6B7280;background:#FFFFFF;color:#17233D;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.btn-p{background:#E8703A;border-color:#E8703A;color:#17233D;font-size:16px}
+.btn-g{background:transparent;color:#E7ECF6;border-color:#AEB9D4}
+.btn-o{border:2px solid #17233D}
+.side{background:#17233D;color:#E7ECF6;padding:16px 20px 24px;display:flex;flex-direction:column;gap:14px}
+.sec{font-size:14px;font-weight:700;line-height:1.4;color:#AEB9D4;letter-spacing:.04em;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sec-l{color:#2B3444}
+.lbl{font-size:14px;font-weight:700;line-height:1.4;display:flex;align-items:center;justify-content:space-between;gap:8px;color:#E7ECF6}
+.lbl-l{color:#2B3444}
+.init{font-size:14px;font-weight:400;color:#AEB9D4}
+.chg{font-size:14px;font-weight:700;line-height:1.3;padding:0 6px;border-radius:4px;background:#E8703A;color:#17233D}
+.inp{font-family:inherit;font-size:16px;height:44px;border:1px solid #6B7280;border-radius:6px;background:#FFFFFF;color:#2B3444;padding:0 10px;width:100%}
+.side .inp{border-color:#FFFFFF}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.seg{display:flex;border:1px solid #AEB9D4;border-radius:6px;overflow:hidden}
+.seg label{flex:1 1 0;min-height:44px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:14px;font-weight:700;color:#E7ECF6;border-left:1px solid #AEB9D4}
+.seg label:first-child{border-left:0}
+.seg input{position:absolute;opacity:0;width:1px;height:1px}
+.seg .on{background:#FFFFFF;color:#17233D}
+.ck{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 10px;border:1px solid #24365C;border-radius:6px;font-size:14px;color:#E7ECF6}
+.ck input{width:20px;height:20px;margin:0;accent-color:#E8703A}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:14px;font-weight:700;line-height:1.3;padding:2px 8px;border-radius:4px;white-space:nowrap}
+.c-ok{background:#E3F0EC;color:#274B43}
+.c-no{background:#EEF1F7;color:#374151}
+.c-warn{background:#FBEDE4;color:#5B3A29}
+.c-ink{background:#E7ECF6;color:#17233D}
+.kari{display:inline-block;background:#FDF6E3;color:#8A5A00;font-size:14px;font-weight:700;line-height:1.3;padding:1px 6px;border-radius:4px}
+.small{font-size:14px;line-height:1.55}
+.mut{color:#6B7280}
+.pane{background:#FFFFFF;border:1px solid #D6DCE8;border-radius:6px}
+.fold>summary{list-style:none;cursor:pointer}
+.fold>summary::-webkit-details-marker{display:none}
+.fold .tw{display:inline-block;transition:transform .15s}
+.fold[open] .tw{transform:rotate(90deg)}
+.row{display:grid;grid-template-columns:minmax(0,1fr) 96px 80px 84px 72px;grid-template-areas:"nm sim up gm op" "sp sp sp sp op";gap:2px 12px;align-items:center;padding:10px 16px;border-top:1px solid #D6DCE8}
+.row>.nm{grid-area:nm;min-width:0}.row>.sim{grid-area:sim}.row>.up{grid-area:up}.row>.gm{grid-area:gm}.row>.op{grid-area:op}.row>.sp{grid-area:sp;min-width:0}
+.row-hd{grid-template-areas:"nm sim up gm op";background:#F7F8FB;font-size:14px;font-weight:700;color:#374151;padding-top:6px;padding-bottom:6px}
+.sel{background:#E7ECF6;box-shadow:inset 3px 0 0 #17233D}
+.meter{height:6px;background:#EEF1F7;border-radius:3px;margin-top:4px}
+.meter i{display:block;height:6px;border-radius:3px;background:#24365C}
+.r{text-align:right}
+.t table{width:100%;border-collapse:collapse;font-size:14px}
+.t th,.t td{border-top:1px solid #D6DCE8;padding:8px 0;text-align:left;vertical-align:top}
+.t th{font-weight:700;color:#2B3444;white-space:nowrap;width:6em}
+.t td.r{text-align:right;white-space:nowrap}
+.layout{display:grid;grid-template-columns:300px minmax(0,1fr);align-items:stretch;min-height:calc(100% - 56px)}
+.draft-in{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px 28px}
+@media (max-width:900px){.draft-in{grid-template-columns:1fr}}
+@media (max-width:760px){.layout{grid-template-columns:1fr}.row{grid-template-columns:minmax(0,1fr) 64px 72px;grid-template-areas:"nm nm op" "sim up op" "sp sp sp"}.row .hide-n{display:none}.row-hd{display:none}.bar{padding:6px 12px}}
+</style>
+</helmet>
+<div class="t" style="min-height: 100%; background: #F7F8FB">
+
+  <header class="bar">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <span style="width: 32px; height: 32px; border-radius: 6px; background: #E8703A; color: #17233D; display: flex; align-items: center; justify-content: center" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.6 L17 6.2 L10 9.8 L3 6.2 Z"></path><path d="M3 10.2 L10 13.8 L17 10.2"></path><path d="M3 13.9 L10 17.5 L17 13.9"></path></svg>
+      </span>
+      <p style="font-size: 18px; font-weight: 700; color: #FFFFFF; letter-spacing: .06em">つもる</p>
+    </div>
+    <nav style="display: flex; align-items: stretch" aria-label="画面">
+      <button class="nav" type="button" aria-current="page">見積の叩き台</button>
+      <button class="nav" type="button">過去見積 <span style="font-weight: 400">38件</span></button>
+    </nav>
+    <div style="flex: 1 1 auto"></div>
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
+      <span class="small" style="display: inline-flex; gap: 6px; align-items: center"><span class="kari">仮</span> 合成データ・金額は例示</span>
+      <button class="btn btn-g" type="button">＋ 過去見積を登録</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- 左: 入力(紺の条件パネル) -->
+    <aside class="side" aria-labelledby="d1-in">
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <h2 id="d1-in" class="sec">引合いの条件 <span class="chip" style="background: #24365C; color: #E7ECF6; font-weight: 400">変更 1</span></h2>
+        <p class="small" style="color: #AEB9D4">対象: チラシ・DM・名刺・ポスター等の商業印刷</p>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
+        <label class="fld"><span class="lbl">種類 <span class="init">初期値</span></span><select class="inp"><option>チラシ</option></select></label>
+        <label class="fld"><span class="lbl">サイズ <span class="init">初期値</span></span><select class="inp"><option>A4</option></select></label>
+      </div>
+      <label class="fld"><span class="lbl">用紙(系統で比べます) <span class="init">初期値</span></span><select class="inp"><option>コート90(コート系)</option></select></label>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
+        <label class="fld"><span class="lbl">色 <span class="chg">変更</span></span><select class="inp" style="border: 3px solid #E8703A"><option>特色1C</option></select></label>
+        <label class="fld"><span class="lbl">数量(部) <span class="init">初期値</span></span><input class="inp" type="number" value="3000" style="text-align: right"></label>
+      </div>
+      <fieldset style="border: 0; padding: 0; margin: 0; min-width: 0">
+        <legend class="lbl" style="margin-bottom: 4px; width: 100%">加工 <span class="init">あてはまるものだけ</span></legend>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px">
+          <label class="ck"><input type="checkbox">折り</label><label class="ck"><input type="checkbox">中綴じ</label><label class="ck"><input type="checkbox">無線綴じ</label><label class="ck"><input type="checkbox">型抜き</label><label class="ck"><input type="checkbox">箔押し</label><label class="ck"><input type="checkbox">PP加工</label>
+        </div>
+      </fieldset>
+      <label class="fld"><span class="lbl">支給データ <span class="init">初期値</span></span><select class="inp"><option>完全データ</option></select></label>
+      <fieldset style="border: 0; padding: 0; margin: 0">
+        <legend class="lbl" style="margin-bottom: 4px; width: 100%">流用 <span class="init">初期値</span></legend>
+        <div class="seg"><label class="on"><input type="radio" name="d1-reuse" checked>新規</label><label><input type="radio" name="d1-reuse">前回流用可</label></div>
+      </fieldset>
+      <button class="btn btn-p" type="button" style="width: 100%; min-height: 52px; margin-top: 4px">類似案件を検索して叩き台を作る</button>
+      <details class="small" style="border-top: 1px solid #24365C; padding-top: 4px; color: #AEB9D4">
+        <summary style="min-height: 44px; display: flex; align-items: center; cursor: pointer; color: #E7ECF6; font-weight: 700">仕組みと出典について</summary>
+        <p>引合いの特徴を過去見積と重み付きで突き合わせ(満点122点→100%に直す)、同じ種類の類似上位から単価の中央値×数量の調整で叩き台を出す、説明できる方式です。ネット印刷で自動で完結しない条件(人の確認・個別見積が入る)の判定は、各社公式の入稿ガイド・仕様・FAQ に基づきます。</p>
+      </details>
+    </aside>
+
+    <!-- 右: 出力(上=叩き台、下=根拠) -->
+    <main style="padding: 20px 24px 28px; display: flex; flex-direction: column; gap: 14px; min-width: 0; max-width: 1040px">
+      <section class="pane" aria-labelledby="d1-draft">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px 12px; flex-wrap: wrap; padding: 12px 20px; border-bottom: 1px solid #D6DCE8">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap"><h1 id="d1-draft" style="font-size: 18px; color: #17233D">見積の叩き台</h1><span class="chip c-no">未記録</span></div>
+          <p class="small" style="color: #374151">チラシ / A4 / コート90 / <b style="color: #B84A14">特色1C</b> / 3,000部 / 加工なし / 完全データ / 新規</p>
+        </div>
+        <div style="padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 14px">
+          <div class="draft-in">
+            <div style="display: flex; flex-direction: column; gap: 10px; min-width: 0">
+              <p style="display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap"><span style="font-size: 40px; font-weight: 700; line-height: 1.1; color: #B84A14">¥12,529</span><span class="chip c-no">税抜・概算</span></p>
+              <table>
+                <caption class="small" style="text-align: left; font-weight: 700; color: #2B3444; padding-bottom: 2px">内訳</caption>
+                <tbody>
+                  <tr><th scope="row">刷り代</th><td>4.2 円/部 × 3,000部</td><td class="r" style="color: #17233D; font-weight: 700">¥12,529</td></tr>
+                  <tr><th scope="row">組版</th><td>+0h(完全データ)</td><td class="r" style="color: #17233D; font-weight: 700">¥0</td></tr>
+                  <tr><th scope="row">型・版代</th><td>別途(叩き台には含みません)</td><td class="r">—</td></tr>
+                  <tr><th scope="row" style="color: #17233D; border-top: 2px solid #17233D">合計</th><td style="border-top: 2px solid #17233D"></td><td class="r" style="color: #17233D; font-weight: 700; border-top: 2px solid #17233D">¥12,529</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px; min-width: 0; border-left: 1px solid #D6DCE8; padding-left: 24px">
+              <h2 id="d1-rec" class="sec sec-l">確定金額の記録</h2>
+              <label class="fld"><span class="lbl lbl-l">確定金額(円)</span><input class="inp" type="number" placeholder="31000" style="text-align: right"></label>
+              <label class="fld"><span class="lbl lbl-l">補正理由 <span class="small mut" style="font-weight: 400">自由記述</span></span><input class="inp" type="text" placeholder="特殊紙の歩留まりを見て上げた 等"></label>
+              <button class="btn btn-o" type="button" style="width: 100%">確定金額を記録する</button>
+              <p class="small mut">保存済みの記録: まだありません。記録すると叩き台との差と理由が残ります。</p>
+            </div>
+          </div>
+
+          <section style="background: #FBEDE4; border: 1px solid #E8703A; border-radius: 6px; padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; color: #5B3A29" aria-labelledby="d1-judge">
+            <h2 id="d1-judge" class="small" style="font-weight: 700"><span style="display: inline-block; background: #17233D; color: #FFFFFF; padding: 1px 8px; border-radius: 4px">▲ 自動で完結しない条件 1件</span> ネット印刷でも、人の確認や個別の見積が入る条件があります</h2>
+            <p class="small"><b>① 特色指定</b> … 注文はでき、価格も出ます。ただし自動入稿(ダイレクト/PDF/スマートチェック)には対応しておらず、スタッフの目視チェックで入稿します。片面2色まで/45kg用紙は不可/追加納期+2日/特色番号を別途指定 ・ 出典: <a href="https://www.graphic.jp/customer/faq/answer/101585">グラフィック公式FAQ</a> / <a href="https://www.graphic.jp/options/print_ink/trait_ink">グラフィック公式 特色</a></p>
+          </section>
+
+          <details class="fold small" style="border-top: 1px solid #D6DCE8">
+            <summary style="min-height: 44px; display: flex; align-items: center; gap: 8px; font-weight: 700; color: #2B3444"><span class="tw" aria-hidden="true">▸</span>単価の出し方と参考(想定粗利率・推奨納期)</summary>
+            <div style="display: flex; flex-direction: column; gap: 4px; padding-bottom: 4px">
+              <p>根拠 4件の単価 5.5・2.6・4.2・3.8 円/部(2.6〜5.5)の<b>中央値 4.0円/部</b>(1件に引っ張られないように真ん中を使う)→ 数量差の調整 <b>+4%</b> <span class="kari">仮</span>(根拠の数量の中央値 4,000部より今回 3,000部は少ない。上下25%まで)→ <b style="color: #17233D">4.2円/部</b></p>
+              <p>いちばん似た E-003(92%・5.5円/部)より −24%。1件ではなく上位 4件の中央値を基準にし、数量差を調整しているため</p>
+              <p>想定粗利率 37%(刷り代ベース・参考) ・ 推奨納期 約 4.5 営業日</p>
+              <p class="mut">叩き台なので、特殊仕様・原価の変動・お客様の事情に合わせて金額を調整する前提です。</p>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <details class="pane fold" aria-label="根拠にした過去案件">
+        <summary style="min-height: 56px; display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; padding: 8px 16px">
+          <span class="tw small" aria-hidden="true" style="color: #17233D">▸</span>
+          <b class="small" style="color: #2B3444">根拠</b>
+          <span class="small" style="color: #374151">過去見積 38件から条件の近い 4件</span>
+          <span style="display: inline-flex; gap: 4px; flex-wrap: wrap"><span class="chip c-ink">E-003 92%</span><span class="chip c-ink">E-037 74%</span><span class="chip c-ink">E-004 72%</span><span class="chip c-ink">E-001 71%</span><span class="chip c-warn">▲ 手戻り 1件</span></span>
+          <span style="flex: 1 1 auto"></span>
+          <span class="small" style="font-weight: 700; color: #17233D">開く</span>
+        </summary>
+        <div>
+          <div class="row row-hd" aria-hidden="true"><span class="nm">案件</span><span class="sim">類似度</span><span class="up r">単価</span><span class="gm r hide-n">粗利・納期</span><span class="op"></span></div>
+          <ul>
+            <li class="row sel" aria-current="true">
+              <p class="nm"><b class="small" style="color: #17233D">E-003</b> <b style="color: #17233D">不動産A4チラシ</b> <span class="chip c-warn">▲ 手戻り</span></p>
+              <div class="sim"><b style="color: #17233D">92%</b><div class="meter"><i style="width: 92%"></i></div></div>
+              <b class="up r" style="color: #17233D">5.5<span class="small" style="font-weight: 400"> 円/部</span></b>
+              <span class="gm r small hide-n">36% ・ 4日</span>
+              <button class="btn op" type="button" aria-expanded="true">閉じる</button>
+              <div class="sp" style="display: flex; flex-direction: column; gap: 6px; padding-top: 4px">
+                <p class="small" style="color: #374151">チラシ / A4 / コート110 / 両面4C / 3,000部 / 加工なし / 完全データ / 新規</p>
+                <p style="display: flex; flex-wrap: wrap; gap: 4px"><span class="chip c-ok">✓ 種類</span><span class="chip c-ok">✓ サイズ</span><span class="chip c-ok">✓ 用紙系統</span><span class="chip" style="background: #FFFFFF; color: #374151">× 色</span><span class="chip c-ok">✓ 加工</span><span class="chip c-ok">✓ 数量帯</span><span class="chip c-ok">✓ 支給データ</span><span class="chip c-ok">✓ 流用</span></p>
+              </div>
+            </li>
+            <li class="row">
+              <p class="nm"><b class="small" style="color: #17233D">E-037</b> <b style="color: #17233D">大手スーパー月間A4折込チラシ</b></p>
+              <div class="sim"><b style="color: #17233D">74%</b><div class="meter"><i style="width: 74%"></i></div></div>
+              <b class="up r" style="color: #17233D">2.6<span class="small" style="font-weight: 400"> 円/部</span></b>
+              <span class="gm r small hide-n">47% ・ 6日</span>
+              <button class="btn op" type="button" aria-expanded="false">開く</button>
+              <div class="sp"><p class="small">チラシ / A4 / コート90 / 両面4C / 30,000部 / 加工なし / 完全データ / 前回流用可 ・ 一致しなかった項目: 色・数量帯・流用</p></div>
+            </li>
+            <li class="row">
+              <p class="nm"><b class="small" style="color: #17233D">E-004</b> <b style="color: #17233D">飲食店A4チラシ</b></p>
+              <div class="sim"><b style="color: #17233D">72%</b><div class="meter"><i style="width: 72%"></i></div></div>
+              <b class="up r" style="color: #17233D">4.2<span class="small" style="font-weight: 400"> 円/部</span></b>
+              <span class="gm r small hide-n">36% ・ 4日</span>
+              <button class="btn op" type="button" aria-expanded="false">開く</button>
+              <div class="sp"><p class="small">チラシ / A4 / マットコート90 / 片面4C / 2,000部 / 加工なし / ラフ・要組版 / 新規 ・ 一致しなかった項目: 用紙系統・色・支給データ(数量帯は一部)</p></div>
+            </li>
+            <li class="row">
+              <p class="nm"><b class="small" style="color: #17233D">E-001</b> <b style="color: #17233D">スーパーB4折込チラシ</b></p>
+              <div class="sim"><b style="color: #17233D">71%</b><div class="meter"><i style="width: 71%"></i></div></div>
+              <b class="up r" style="color: #17233D">3.8<span class="small" style="font-weight: 400"> 円/部</span></b>
+              <span class="gm r small hide-n">37% ・ 5日</span>
+              <button class="btn op" type="button" aria-expanded="false">開く</button>
+              <div class="sp"><p class="small">チラシ / B4 / コート90 / 両面4C / 5,000部 / 加工なし / 完全データ / 前回流用可 ・ 一致しなかった項目: サイズ・色・流用(数量帯は一部)</p></div>
+            </li>
+          </ul>
+          <div style="border-top: 1px solid #D6DCE8; padding: 10px 16px; background: #FBEDE4; color: #5B3A29; border-radius: 0 0 6px 6px">
+            <h3 class="small" style="font-weight: 700">▲ この案件で注意すべき点(採用した同種の類似案件で発生した手戻り)</h3>
+            <p class="small">E-003 不動産A4チラシ … 塗り足し不足でフチに白が出て再入稿。見積を出す前に、これらを先に確認すると、受注後の手戻りを防げます。</p>
+          </div>
+        </div>
+      </details>
+
+      <details class="pane fold">
+        <summary style="min-height: 48px; display: flex; align-items: center; gap: 8px; padding: 4px 16px"><span class="tw small" aria-hidden="true" style="color: #17233D">▸</span><b class="small" style="color: #2B3444">過去のメモを検索</b><span class="small mut">メモ・手戻り事由・補正理由から、語句の一致で探します</span></summary>
+        <div style="padding: 0 16px 14px; display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap">
+          <label class="fld" style="flex: 1 1 260px"><span class="lbl lbl-l">検索する語</span><input class="inp" type="search" placeholder="塗り足し / 色合わせ / 特色番号 …"></label>
+          <button class="btn btn-o" type="button">メモを検索する</button>
+        </div>
+      </details>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

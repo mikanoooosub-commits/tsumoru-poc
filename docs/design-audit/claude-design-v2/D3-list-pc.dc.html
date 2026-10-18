@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>案D 過去見積の一覧 PC(ダイアログ)</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F7F8FB}
+a{color:#17233D}a:hover{color:#24365C}
+.t{font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;color:#374151;font-size:16px;line-height:1.6;font-variant-numeric:tabular-nums}
+.t *{box-sizing:border-box}
+.t h1,.t h2,.t h3,.t p,.t ul{margin:0}
+.t ul{padding:0;list-style:none}
+.bar{background:#17233D;color:#E7ECF6;min-height:56px;display:flex;align-items:stretch;gap:20px;padding:0 20px;border-bottom:1px solid #24365C;flex-wrap:wrap}
+.nav{font-family:inherit;background:transparent;border:0;border-bottom:3px solid transparent;color:#AEB9D4;font-size:14px;font-weight:700;padding:0 12px;min-height:44px;display:flex;align-items:center;gap:6px}
+.nav[aria-current]{color:#FFFFFF;border-bottom-color:#E8703A}
+.btn{font-family:inherit;font-weight:700;font-size:14px;line-height:1.3;min-height:44px;padding:8px 16px;border-radius:6px;border:1px solid #6B7280;background:#FFFFFF;color:#17233D;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.btn-p{background:#E8703A;border-color:#E8703A;color:#17233D;font-size:16px}
+.btn-txt{border-color:transparent;background:transparent;padding:8px 10px}
+.side{background:#17233D;color:#E7ECF6;padding:16px 16px 24px;display:flex;flex-direction:column;gap:12px}
+.sec{font-size:14px;font-weight:700;line-height:1.4;color:#AEB9D4;letter-spacing:.04em}
+.lbl{font-size:14px;font-weight:700;line-height:1.4;color:#E7ECF6}
+.inp{font-family:inherit;font-size:16px;height:44px;border:1px solid #FFFFFF;border-radius:6px;background:#FFFFFF;color:#2B3444;padding:0 10px;width:100%}
+.flt{font-family:inherit;width:100%;min-height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 12px;border:0;border-radius:6px;background:transparent;color:#E7ECF6;font-size:14px;font-weight:700;text-align:left}
+.flt span{font-weight:400;color:#AEB9D4}
+.flt[aria-pressed="true"]{background:#FFFFFF;color:#17233D}
+.flt[aria-pressed="true"] span{color:#374151}
+.kari{display:inline-block;background:#FDF6E3;color:#8A5A00;font-size:14px;font-weight:700;line-height:1.3;padding:1px 6px;border-radius:4px}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:14px;font-weight:700;line-height:1.3;padding:2px 8px;border-radius:4px;white-space:nowrap}
+.c-warn{background:#FBEDE4;color:#5B3A29}
+.small{font-size:14px;line-height:1.55}
+.row{display:grid;grid-template-columns:64px minmax(0,1fr) 100px 92px 64px 196px;grid-template-areas:"no nm amt up dl op";gap:4px 14px;align-items:center;padding:10px 16px;border-top:1px solid #D6DCE8}
+.row>.no{grid-area:no}.row>.nm{grid-area:nm;min-width:0}.row>.amt{grid-area:amt}.row>.up{grid-area:up}.row>.dl{grid-area:dl}.row>.op{grid-area:op;display:flex;justify-content:flex-end;gap:2px}
+.row-hd{background:#F7F8FB;border-top:0;font-size:14px;font-weight:700;color:#374151;padding-top:8px;padding-bottom:8px}
+.r{text-align:right}
+.flt2{font-family:inherit;min-height:44px;padding:0 12px;border-radius:22px;border:1px solid #D6DCE8;background:#FFFFFF;color:#2B3444;font-size:14px;font-weight:700;white-space:nowrap}
+.flt2 span{font-weight:400;color:#374151;margin-left:4px}
+.flt2[aria-pressed="true"]{background:#17233D;border-color:#17233D;color:#FFFFFF}
+.flt2[aria-pressed="true"] span{color:#E7ECF6}
+.layout{display:grid;grid-template-columns:300px minmax(0,1fr);min-height:844px}
+@media (max-width:760px){.layout{grid-template-columns:1fr}.ov{padding:8px !important}.dlg-hd{padding:10px 12px !important}.row{grid-template-columns:minmax(0,1fr) 96px;grid-template-areas:"no amt" "nm nm" "up dl" "op op"}.row-hd{display:none}.row>.op{justify-content:flex-start}.dl{text-align:right}}
+</style>
+</helmet>
+<div class="t" style="min-height: 100%; background: #F7F8FB; position: relative">
+  <!-- 後ろ: 主画面(暗くした) -->
+  <div aria-hidden="true">
+    <header class="bar">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <span style="width: 32px; height: 32px; border-radius: 6px; background: #E8703A"></span>
+        <p style="font-size: 18px; font-weight: 700; color: #FFFFFF; letter-spacing: .06em">つもる</p>
+      </div>
+    </header>
+    <div class="layout"><div style="background: #17233D"></div><div></div></div>
+  </div>
+
+  <!-- 中央のダイアログ -->
+  <div class="ov" style="position: absolute; inset: 0; background: rgba(23,35,61,.62); display: flex; justify-content: center; align-items: flex-start; padding: 40px 24px">
+    <section role="dialog" aria-modal="true" aria-labelledby="d3-h" style="width: 100%; max-width: 1000px; background: #FFFFFF; border-radius: 8px; box-shadow: 0 16px 40px rgba(0,0,0,.35); display: flex; flex-direction: column; max-height: 100%">
+      <div class="dlg-hd" style="padding: 14px 20px; border-bottom: 1px solid #D6DCE8; display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap">
+          <h1 id="d3-h" style="font-size: 18px; color: #17233D">過去見積の一覧・編集</h1>
+          <span class="small" style="display: inline-flex; gap: 6px; align-items: center"><span class="kari">仮</span> 合成データ・金額は例示</span>
+          <span style="flex: 1 1 auto"></span>
+          <button class="btn btn-p" type="button">＋ 過去見積を登録する</button>
+          <button class="btn" type="button" aria-label="一覧を閉じる" style="padding: 8px 12px"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 L15 15 M15 5 L5 15"></path></svg></button>
+        </div>
+        <div style="display: flex; gap: 10px 16px; align-items: flex-end; flex-wrap: wrap">
+          <label style="display: flex; flex-direction: column; gap: 4px; flex: 1 1 280px; max-width: 420px"><span class="small" style="font-weight: 700; color: #2B3444">絞り込み</span><input class="inp" type="search" placeholder="案件名・種類・サイズ・番号(E-003 など)" style="border-color: #6B7280"></label>
+          <p class="small" style="color: #374151; padding-bottom: 10px"><b style="color: #17233D">7件</b> / 全38件 ・ 番号の新しい順 ・ ▲ は手戻りがあった案件</p>
+        </div>
+        <div role="group" aria-label="種類で絞る" style="display: flex; gap: 6px; flex-wrap: wrap">
+          <button class="flt2" type="button" aria-pressed="false">すべて<span>38</span></button>
+          <button class="flt2" type="button" aria-pressed="true">チラシ<span>7</span></button>
+          <button class="flt2" type="button" aria-pressed="false">リーフレット/パンフ<span>5</span></button>
+          <button class="flt2" type="button" aria-pressed="false">名刺<span>5</span></button>
+          <button class="flt2" type="button" aria-pressed="false">封筒<span>5</span></button>
+          <button class="flt2" type="button" aria-pressed="false">ポスター<span>4</span></button>
+          <button class="flt2" type="button" aria-pressed="false">冊子/カタログ<span>3</span></button>
+          <button class="flt2" type="button" aria-pressed="false">パッケージ/紙器<span>3</span></button>
+          <button class="flt2" type="button" aria-pressed="false">シール/ラベル<span>2</span></button>
+          <button class="flt2" type="button" aria-pressed="false">DM<span>2</span></button>
+          <button class="flt2" type="button" aria-pressed="false">POP/販促<span>2</span></button>
+        </div>
+      </div>
+      <div class="row row-hd" aria-hidden="true"><span class="no">番号</span><span class="nm">案件名・仕様</span><span class="amt r">見積金額</span><span class="up r">単価</span><span class="dl r">納期</span><span class="op"></span></div>
+      <div style="overflow-y: auto; min-height: 0">
+        <ul>
+          <li class="row"><b class="no small" style="color: #17233D">E-037</b><div class="nm"><p style="font-weight: 700; color: #17233D">大手スーパー月間A4折込チラシ</p><p class="small">チラシ / A4 / コート90 / 両面4C / 30,000部 / 加工なし / 完全データ / 前回流用可</p></div><b class="amt r" style="color: #17233D">¥78,000</b><span class="up r small">2.6円/部</span><span class="dl r small">6日</span><span class="op"><button class="btn btn-txt" type="button" aria-label="E-037 を編集する">編集する</button><button class="btn btn-txt" type="button" style="color: #8A2E2E" aria-label="E-037 を削除する">削除する</button></span></li>
+          <li class="row" style="background: #FDEAEA; box-shadow: inset 3px 0 0 #8A2E2E"><b class="no small" style="color: #17233D">E-036</b><div class="nm"><p style="font-weight: 700; color: #17233D">前回色合わせチラシ <span class="chip" style="background: #FFFFFF; color: #5B3A29">▲ 手戻り</span></p><p class="small">チラシ / B4 / コート90 / 前回色合わせ / 5,000部 / 加工なし / ラフ・要組版 / 前回流用可</p><p class="small" style="color: #5B3A29">▲ 前回の刷り本が見つからず色合わせに時間がかかった</p></div><b class="amt r" style="color: #17233D">¥24,000</b><span class="up r small">4.8円/部</span><span class="dl r small">7日</span><span class="op" style="flex-direction: column; align-items: flex-end"><span class="small" style="color: #8A2E2E; font-weight: 700">E-036 を削除しますか?</span><span><button class="btn btn-txt" type="button">やめる</button><button class="btn" type="button" style="color: #8A2E2E; border-color: #8A2E2E">削除する</button></span></span></li>
+          <li class="row"><b class="no small" style="color: #17233D">E-005</b><div class="nm"><p style="font-weight: 700; color: #17233D">A5ポスティングチラシ</p><p class="small">チラシ / A5 / コート73 / 両面4C / 8,000部 / 加工なし / 完全データ / 前回流用可</p></div><b class="amt r" style="color: #17233D">¥25,600</b><span class="up r small">3.2円/部</span><span class="dl r small">5日</span><span class="op"><button class="btn btn-txt" type="button" aria-label="E-005 を編集する">編集する</button><button class="btn btn-txt" type="button" style="color: #8A2E2E" aria-label="E-005 を削除する">削除する</button></span></li>
+          <li class="row"><b class="no small" style="color: #17233D">E-004</b><div class="nm"><p style="font-weight: 700; color: #17233D">飲食店A4チラシ</p><p class="small">チラシ / A4 / マットコート90 / 片面4C / 2,000部 / 加工なし / ラフ・要組版 / 新規</p></div><b class="amt r" style="color: #17233D">¥8,400</b><span class="up r small">4.2円/部</span><span class="dl r small">4日</span><span class="op"><button class="btn btn-txt" type="button" aria-label="E-004 を編集する">編集する</button><button class="btn btn-txt" type="button" style="color: #8A2E2E" aria-label="E-004 を削除する">削除する</button></span></li>
+          <li class="row"><b class="no small" style="color: #17233D">E-003</b><div class="nm"><p style="font-weight: 700; color: #17233D">不動産A4チラシ <span class="chip c-warn">▲ 手戻り</span></p><p class="small">チラシ / A4 / コート110 / 両面4C / 3,000部 / 加工なし / 完全データ / 新規</p><p class="small" style="color: #5B3A29">▲ 塗り足し不足でフチに白が出て再入稿</p></div><b class="amt r" style="color: #17233D">¥16,500</b><span class="up r small">5.5円/部</span><span class="dl r small">4日</span><span class="op"><button class="btn btn-txt" type="button" aria-label="E-003 を編集する">編集する</button><button class="btn btn-txt" type="button" style="color: #8A2E2E" aria-label="E-003 を削除する">削除する</button></span></li>
+          <li class="row"><b class="no small" style="color: #17233D">E-002</b><div class="nm"><p style="font-weight: 700; color: #17233D">量販店B4折込チラシ</p><p class="small">チラシ / B4 / コート90 / 両面4C / 10,000部 / 加工なし / 完全データ / 前回流用可</p></div><b class="amt r" style="color: #17233D">¥30,000</b><span class="up r small">3.0円/部</span><span class="dl r small">5日</span><span class="op"><button class="btn btn-txt" type="button" aria-label="E-002 を編集する">編集する</button><button class="btn btn-txt" type="button" style="color: #8A2E2E" aria-label="E-002 を削除する">削除する</button></span></li>
+          <li class="row"><b class="no small" style="color: #17233D">E-001</b><div class="nm"><p style="font-weight: 700; color: #17233D">スーパーB4折込チラシ</p><p class="small">チラシ / B4 / コート90 / 両面4C / 5,000部 / 加工なし / 完全データ / 前回流用可</p></div><b class="amt r" style="color: #17233D">¥19,000</b><span class="up r small">3.8円/部</span><span class="dl r small">5日</span><span class="op"><button class="btn btn-txt" type="button" aria-label="E-001 を編集する">編集する</button><button class="btn btn-txt" type="button" style="color: #8A2E2E" aria-label="E-001 を削除する">削除する</button></span></li>
+        </ul>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

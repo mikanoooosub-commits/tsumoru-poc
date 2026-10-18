@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>案C 過去見積の一覧 PC</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#EEF1F7}
+a{color:#17233D}a:hover{color:#24365C}
+.t{font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;color:#374151;font-size:16px;line-height:1.7;font-variant-numeric:tabular-nums}
+.t *{box-sizing:border-box}
+.t h1,.t h2,.t h3,.t p,.t table{margin:0}
+.btn{font-family:inherit;font-weight:700;font-size:16px;line-height:1.3;min-height:44px;padding:8px 16px;border-radius:6px;border:1px solid #6B7280;background:#FFFFFF;color:#17233D;display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap}
+.btn-go{background:#E8703A;border-color:#E8703A;color:#17233D}
+.btn-ghost{background:transparent;border-color:#AEB9D4;color:#E7ECF6}
+.btn-txt{border-color:transparent;background:transparent;text-decoration:underline;padding:8px 6px}
+.lbl{font-size:14px;font-weight:700;line-height:1.4;color:#E7ECF6}
+.inp{font-family:inherit;font-size:16px;height:44px;border:1px solid #6B7280;border-radius:6px;background:#FFFFFF;color:#2B3444;padding:0 12px;width:100%}
+.small{font-size:14px;line-height:1.6}
+.mut{color:#6B7280}
+.kari{display:inline-block;background:#FDF6E3;color:#8A5A00;font-size:14px;font-weight:700;line-height:1.3;padding:1px 6px;border-radius:6px}
+.typ{font-family:inherit;font-size:14px;font-weight:700;min-height:44px;padding:4px 10px;border-radius:6px;border:1px solid #24365C;background:transparent;color:#E7ECF6;text-align:left;display:flex;justify-content:space-between;align-items:center;width:100%}
+.typ-on{background:#E7ECF6;color:#17233D;border-color:#E7ECF6}
+.tick{position:absolute;width:22px;height:22px;border-color:#6B7280;border-style:solid;border-width:0}
+.t table{border-collapse:collapse;width:100%}
+.t th,.t td{padding:8px 10px;border-bottom:1px solid #D6DCE8;text-align:left;vertical-align:middle}
+.t thead th{border-bottom:2px solid #17233D;font-size:14px;color:#17233D}
+.t td:nth-child(1),.t td:nth-child(4),.t td:nth-child(5){white-space:nowrap}
+.rw{font-size:14px;color:#5B3A29}
+</style>
+</helmet>
+<div class="t" style="min-height: 100%; background: #EEF1F7; display: flex; flex-wrap: wrap; align-items: stretch">
+  <aside style="flex: 1 1 280px; max-width: 300px; background: #17233D; padding: 20px; display: flex; flex-direction: column; gap: 14px" aria-label="絞り込み">
+    <p style="font-size: 24px; font-weight: 700; color: #FFFFFF; line-height: 1.2">つもる</p>
+    <p class="small" style="color: #E7ECF6; display: flex; gap: 6px; align-items: center"><span class="kari">仮</span> 合成データ・金額は例示</p>
+    <button class="btn btn-ghost" type="button">叩き台の画面へ戻る</button>
+    <label style="display: flex; flex-direction: column; gap: 4px"><span class="lbl">絞り込み</span><input class="inp" type="text" placeholder="案件名・番号 など"></label>
+    <div role="group" aria-label="種類で絞る" style="display: flex; flex-direction: column; gap: 6px">
+      <span class="lbl">種類</span>
+      <button class="typ typ-on" type="button" aria-pressed="true"><span>すべて</span><span>38</span></button>
+      <button class="typ" type="button"><span>チラシ</span><span>7</span></button>
+      <button class="typ" type="button"><span>リーフレット/パンフ</span><span>5</span></button>
+      <button class="typ" type="button"><span>名刺</span><span>5</span></button>
+      <button class="typ" type="button"><span>封筒</span><span>5</span></button>
+      <button class="typ" type="button"><span>ポスター</span><span>4</span></button>
+      <button class="typ" type="button"><span>冊子/カタログ</span><span>3</span></button>
+      <button class="typ" type="button"><span>パッケージ/紙器</span><span>3</span></button>
+      <button class="typ" type="button"><span>シール/ラベル</span><span>2</span></button>
+      <button class="typ" type="button"><span>DM</span><span>2</span></button>
+      <button class="typ" type="button"><span>POP/販促</span><span>2</span></button>
+    </div>
+    <button class="btn btn-go" type="button" style="margin-top: 8px">過去見積を登録する</button>
+  </aside>
+  <main style="flex: 999 1 640px; min-width: 0; padding: 24px 32px 32px">
+    <article style="position: relative; background: #FFFFFF; box-shadow: 0 4px 9px rgba(0,0,0,.20); padding: 40px 40px 28px; display: flex; flex-direction: column; gap: 12px" aria-labelledby="c3-h">
+      <span class="tick" style="top: 14px; left: 14px; border-top-width: 1px; border-left-width: 1px" aria-hidden="true"></span>
+      <span class="tick" style="top: 14px; right: 14px; border-top-width: 1px; border-right-width: 1px" aria-hidden="true"></span>
+      <span class="tick" style="bottom: 14px; left: 14px; border-bottom-width: 1px; border-left-width: 1px" aria-hidden="true"></span>
+      <span class="tick" style="bottom: 14px; right: 14px; border-bottom-width: 1px; border-right-width: 1px" aria-hidden="true"></span>
+      <header style="display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap">
+        <div>
+          <p class="small" style="color: #B84A14; font-weight: 700">控えの綴り</p>
+          <h1 id="c3-h" style="font-size: 24px; color: #17233D">過去見積の一覧・編集 <span class="small" style="font-weight: 400; color: #374151">全38件</span></h1>
+        </div>
+        <p class="small" style="color: #374151">番号の新しい順。▲ は手戻りがあった案件</p>
+      </header>
+      <table>
+        <thead><tr><th scope="col">No.</th><th scope="col">案件名</th><th scope="col">仕様</th><th scope="col" style="text-align: right">数量</th><th scope="col" style="text-align: right">見積金額</th><th scope="col">操作</th></tr></thead>
+        <tbody>
+          <tr><td>E-038</td><td><b style="color: #2B3444">両面フルカラー名刺(小ロット)</b></td><td class="small">名刺 / 名刺 / マットコート220 / 両面4C / 加工なし</td><td style="text-align: right">100部</td><td style="text-align: right">¥1,800</td><td style="white-space: nowrap"><button class="btn btn-txt" type="button">E-038 を編集する</button><button class="btn btn-txt" type="button" style="color: #8A2E2E" aria-label="E-038 を削除する">削除する</button></td></tr>
+          <tr><td>E-037</td><td><b style="color: #2B3444">大手スーパー月間A4折込チラシ</b></td><td class="small">チラシ / A4 / コート90 / 両面4C / 加工なし</td><td style="text-align: right">30,000部</td><td style="text-align: right">¥78,000</td><td style="white-space: nowrap"><button class="btn btn-txt" type="button">E-037 を編集する</button><button class="btn btn-txt" type="button" style="color: #8A2E2E" aria-label="E-037 を削除する">削除する</button></td></tr>
+          <tr><td>E-036</td><td><b style="color: #2B3444">前回色合わせチラシ</b><br><span class="rw">▲ 前回の刷り本が見つからず色合わせに時間がかかった</span></td><td class="small">チラシ / B4 / コート90 / 前回色合わせ / 加工なし</td><td style="text-align: right">5,000部</td><td style="text-align: right">¥24,000</td><td style="white-space: nowrap"><button class="btn btn-txt" type="button">E-036 を編集する</button><button class="btn btn-txt" type="button" style="color: #8A2E2E" aria-label="E-036 を削除する">削除する</button></td></tr>
+          <tr style="background: #FDEAEA"><td>E-035</td><td><b style="color: #2B3444">特色1C封筒</b></td><td class="small">封筒 / 長3 / ケント / 特色1C / 加工なし</td><td style="text-align: right">3,000部</td><td style="text-align: right">¥27,000</td><td style="white-space: nowrap"><span class="small" style="color: #8A2E2E; font-weight: 700">E-035 を削除しますか?</span><br><button class="btn btn-txt" type="button" style="color: #8A2E2E">削除する</button><button class="btn btn-txt" type="button">やめる</button></td></tr>
+          <tr><td>E-034</td><td><b style="color: #2B3444">特色2C会社案内リーフ</b><br><span class="rw">▲ 特色と用紙の相性で発色が想定と違い、再校で用紙変更</span></td><td class="small">リーフレット/パンフ / A4 / マットコート110 / 特色2C / 折り</td><td style="text-align: right">2,000部</td><td style="text-align: right">¥52,000</td><td style="white-space: nowrap"><button class="btn btn-txt" type="button">E-034 を編集する</button><button class="btn btn-txt" type="button" style="color: #8A2E2E" aria-label="E-034 を削除する">削除する</button></td></tr>
+          <tr><td>E-033</td><td><b style="color: #2B3444">コーポレート特色2C名刺</b><br><span class="rw">▲ 特色番号(DIC/PANTONE)の指定漏れで刷り直し</span></td><td class="small">名刺 / 名刺 / 上質220 / 特色2C / 加工なし</td><td style="text-align: right">500部</td><td style="text-align: right">¥6,800</td><td style="white-space: nowrap"><button class="btn btn-txt" type="button">E-033 を編集する</button><button class="btn btn-txt" type="button" style="color: #8A2E2E" aria-label="E-033 を削除する">削除する</button></td></tr>
+          <tr><td>E-032</td><td><b style="color: #2B3444">A4販促クリアファイル</b><br><span class="rw">▲ 印刷以外の販促物で標準テンプレに無く、仕様確定に往復</span></td><td class="small">POP/販促 / A4 / PP / 2C / PP加工</td><td style="text-align: right">1,000部</td><td style="text-align: right">¥65,000</td><td style="white-space: nowrap"><button class="btn btn-txt" type="button">E-032 を編集する</button><button class="btn btn-txt" type="button" style="color: #8A2E2E" aria-label="E-032 を削除する">削除する</button></td></tr>
+          <tr><td>E-031</td><td><b style="color: #2B3444">A4光沢ポスター</b><br><span class="rw">▲ 仕上がりサイズが商品規格外で、断裁位置の確認往復</span></td><td class="small">ポスター / A4 / 光沢 / 片面4C / 加工なし</td><td style="text-align: right">1,000部</td><td style="text-align: right">¥45,000</td><td style="white-space: nowrap"><button class="btn btn-txt" type="button">E-031 を編集する</button><button class="btn btn-txt" type="button" style="color: #8A2E2E" aria-label="E-031 を削除する">削除する</button></td></tr>
+          <tr><td>E-030</td><td><b style="color: #2B3444">店頭POPカード</b></td><td class="small">POP/販促 / A5 / コート220 / 片面4C / 加工なし</td><td style="text-align: right">500部</td><td style="text-align: right">¥15,000</td><td style="white-space: nowrap"><button class="btn btn-txt" type="button">E-030 を編集する</button><button class="btn btn-txt" type="button" style="color: #8A2E2E" aria-label="E-030 を削除する">削除する</button></td></tr>
+          <tr><td>E-029</td><td><b style="color: #2B3444">DMハガキ厚手</b></td><td class="small">DM / ハガキ / マットコート220 / 両面4C / 加工なし</td><td style="text-align: right">5,000部</td><td style="text-align: right">¥40,000</td><td style="white-space: nowrap"><button class="btn btn-txt" type="button">E-029 を編集する</button><button class="btn btn-txt" type="button" style="color: #8A2E2E" aria-label="E-029 を削除する">削除する</button></td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="color: #374151">ほか 28件(下へ続く)</p>
+    </article>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1158}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

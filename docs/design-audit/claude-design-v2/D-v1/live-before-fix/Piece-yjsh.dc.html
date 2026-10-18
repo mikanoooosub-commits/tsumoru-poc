@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>案D 主画面 スマホ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+  <helmet>
+    <style>
+      html, body { margin: 0; height: 100%; }
+    </style>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F7F8FB}
+a{color:#17233D}a:hover{color:#24365C}
+.t{font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;color:#374151;font-size:16px;line-height:1.7;font-variant-numeric:tabular-nums}
+.t *{box-sizing:border-box}
+.t h1,.t h2,.t h3,.t p,.t ul,.t ol,.t dl,.t dd{margin:0}
+.t ul,.t ol{padding:0;list-style:none}
+.ink{background:#17233D;color:#E7ECF6}
+.ink a{color:#E7ECF6}
+.kick{font-size:14px;font-weight:700;letter-spacing:.12em;line-height:1.4;display:flex;align-items:center;gap:10px}
+.kick::after{content:"";flex:1 1 auto;height:1px;background:#24365C}
+.kick-l::after{background:#D6DCE8}
+.btn{font-family:inherit;font-weight:700;font-size:16px;line-height:1.3;min-height:44px;padding:8px 16px;border-radius:6px;border:1px solid #6B7280;background:#FFFFFF;color:#17233D;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn-p{background:#E8703A;border-color:#E8703A;color:#17233D}
+.btn-g{background:transparent;color:#E7ECF6;border-color:#AEB9D4}
+.lbl{font-size:14px;font-weight:700;color:#2B3444;line-height:1.4}
+.inp{font-family:inherit;font-size:16px;height:44px;border:1px solid #6B7280;border-radius:6px;background:#FFFFFF;color:#2B3444;padding:0 10px;width:100%}
+.fld{display:flex;flex-direction:column;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:14px;font-weight:700;line-height:1.3;padding:3px 8px;border-radius:6px;white-space:nowrap}
+.c-ok{background:#E3F0EC;color:#274B43}
+.c-no{background:#EEF1F7;color:#374151}
+.kari{display:inline-block;background:#FDF6E3;color:#8A5A00;font-size:14px;font-weight:700;line-height:1.3;padding:1px 6px;border-radius:6px}
+.small{font-size:14px;line-height:1.6}
+.mut{color:#6B7280}
+.tab{font-family:inherit;flex:1 1 0;min-height:48px;background:transparent;border:0;border-bottom:3px solid transparent;color:#AEB9D4;font-size:14px;font-weight:700;padding:0 4px}
+.paper{background:#FFFFFF;border-radius:4px;box-shadow:0 10px 24px rgba(0,0,0,.28)}
+.slip{color:#374151;background:#FFFFFF;border-radius:4px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.num{font-size:32px;font-weight:700;line-height:1;color:#B84A14}
+.unit{font-size:14px;font-weight:700;color:#B84A14;margin-left:2px}
+.t table{width:100%;border-collapse:collapse;font-size:14px;line-height:1.5}
+.t th,.t td{border-top:1px solid #D6DCE8;padding:8px 4px;vertical-align:top;text-align:left}
+.t th{color:#2B3444;white-space:nowrap;width:5em}
+</style>
+  </helmet>
+<main style="padding: 0 12px 24px; display: flex; flex-direction: column; gap: 20px; position: absolute; left: 0px; top: 0px; right: auto; bottom: auto; margin: 0px; box-sizing: border-box; width: 375px;">
+    <article class="paper" style="margin-top: -96px; border-top: 6px solid #E8703A; padding: 20px 18px; display: flex; flex-direction: column; gap: 14px" aria-labelledby="d2-draft">
+      <header style="border-bottom: 1px solid #17233D; padding-bottom: 12px; display: flex; flex-direction: column; gap: 4px">
+        <p class="small" style="color: #B84A14; font-weight: 700; letter-spacing: .12em">見積の叩き台</p>
+        <h2 id="d2-draft" style="font-size: 18px; line-height: 1.4; color: #17233D">チラシ A4 特色1C 3,000部</h2>
+        <p style="display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap"><span style="font-size: 40px; font-weight: 700; line-height: 1.1; color: #B84A14">¥12,529</span><span class="chip c-no">税抜・概算</span></p>
+        <p class="small" style="color: #374151">過去見積 <b style="color: #17233D">38件</b>から条件の近い <b style="color: #17233D">4件</b>を引いて出しました(下の「根拠にした控え」)</p>
+      </header>
+      <section style="background: #FBEDE4; border-radius: 4px; padding: 12px; display: flex; flex-direction: column; gap: 6px; color: #5B3A29" aria-labelledby="d2-judge">
+        <h3 id="d2-judge" class="small" style="font-weight: 700; display: flex; flex-direction: column; align-items: flex-start; gap: 4px"><span style="display: inline-block; background: #17233D; color: #FFFFFF; padding: 2px 8px; border-radius: 4px">▲ 自動で完結しない条件(該当 1件)</span>ネット印刷でも、人の確認や個別の見積が入る条件があります</h3>
+        <p class="small"><b>① 特色指定</b> … 注文はでき、価格も出ます。ただし自動入稿(ダイレクト/PDF/スマートチェック)には対応しておらず、スタッフの目視チェックで入稿します。片面2色まで/45kg用紙は不可/追加納期+2日/特色番号を別途指定</p>
+        <p class="small">出典: <a href="https://www.graphic.jp/customer/faq/answer/101585">グラフィック公式FAQ</a> / <a href="https://www.graphic.jp/options/print_ink/trait_ink">グラフィック公式 特色</a></p>
+      </section>
+      <table>
+        <caption class="small" style="text-align: left; font-weight: 700; color: #2B3444; padding-bottom: 4px">内訳</caption>
+        <tbody>
+          <tr><th scope="row">刷り代</th><td>4.2 円/部 × 3,000部<br><span class="mut">根拠の単価 2.6〜5.5</span></td><td style="text-align: right; font-weight: 700; color: #17233D">¥12,529</td></tr>
+          <tr><th scope="row">組版</th><td>+0h(完全データ)</td><td style="text-align: right; font-weight: 700; color: #17233D">¥0</td></tr>
+          <tr><th scope="row">型・版代</th><td>別途(叩き台には含みません)</td><td style="text-align: right">—</td></tr>
+          <tr><th scope="row">参考</th><td colspan="2">想定粗利率 37%(刷り代ベース)・推奨納期 約 4.5 営業日</td></tr>
+        </tbody>
+      </table>
+      <section style="display: flex; flex-direction: column; gap: 6px" aria-labelledby="d2-why">
+        <h3 id="d2-why" style="font-size: 16px; color: #17233D">価格根拠</h3>
+        <ul class="small" style="display: flex; flex-direction: column; gap: 6px">
+          <li><b>基準の単価</b>: 下の控え 4件の単価 5.5・2.6・4.2・3.8 円/部の<b>中央値 4.0円/部</b>。1件に引っ張られないように真ん中の値を使います。</li>
+          <li><b>数量差の調整 +4%</b>(<span class="kari">仮</span> ルール): 根拠の数量(中央値 4,000部)より今回 3,000部は少ないので1部あたりを高く。調整は上下25%まで。</li>
+          <li>いちばん似た E-003(類似度 92%・単価 5.5円/部)より <b>−24%</b>。上位 4件の中央値を基準にし、数量差を調整しているためです。</li>
+        </ul>
+        <p class="small">叩き台なので、特殊仕様・原価の変動・お客様の事情に合わせて金額を調整する前提です。</p>
+      </section>
+      <section style="border-top: 1px solid #D6DCE8; padding-top: 10px; color: #5B3A29" aria-labelledby="d2-notes">
+        <h3 id="d2-notes" class="small" style="font-weight: 700">▲ この案件で注意すべき点(採用した同種の類似案件で発生した手戻り)</h3>
+        <p class="small">E-003 不動産A4チラシ … 塗り足し不足でフチに白が出て再入稿。見積を出す前に、これらを先に確認すると、受注後の手戻りを防げます。</p>
+      </section>
+    </article>
+  </main>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

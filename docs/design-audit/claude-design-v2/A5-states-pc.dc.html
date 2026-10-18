@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>案A 状態の一覧</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F7F8FB}
+a{color:#17233D}a:hover{color:#24365C}
+.t{font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;color:#374151;font-size:16px;line-height:1.7;font-variant-numeric:tabular-nums}
+.t *{box-sizing:border-box}
+.t h1,.t h2,.t h3,.t p{margin:0}
+.btn{font-family:inherit;font-weight:700;font-size:16px;line-height:1.3;min-height:44px;padding:8px 18px;border-radius:6px;border:1px solid #6B7280;background:#FFFFFF;color:#17233D;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn-p{background:#17233D;border-color:#17233D;color:#FFFFFF}
+.btn-txt{border-color:transparent;background:transparent;text-decoration:underline;padding:8px 6px}
+.lbl{font-size:14px;font-weight:700;color:#2B3444;line-height:1.4}
+.inp{font-family:inherit;font-size:16px;height:44px;border:1px solid #6B7280;border-radius:6px;background:#FFFFFF;color:#2B3444;padding:0 12px;width:100%}
+.inp:disabled{background:#EEF1F7}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:14px;font-weight:700;line-height:1.3;padding:3px 8px;border-radius:6px;white-space:nowrap}
+.c-no{background:#EEF1F7;color:#374151}
+.c-chg{background:#FBEDE4;color:#5B3A29}
+.c-line{border:1px solid #D6DCE8;background:#FFFFFF;color:#374151;font-weight:400}
+.card{background:#FFFFFF;border:1px solid #D6DCE8;border-radius:6px;box-shadow:0 3px 9px rgba(154,164,184,.28)}
+.small{font-size:14px;line-height:1.6}
+.mut{color:#6B7280}
+.cap{font-size:14px;font-weight:700;color:#FFFFFF;background:#24365C;border-radius:6px 6px 0 0;padding:4px 12px}
+.panel{display:flex;flex-direction:column}
+.body{background:#F7F8FB;border:1px solid #D6DCE8;border-top:0;border-radius:0 0 6px 6px;padding:16px;display:flex;flex-direction:column;gap:12px;flex:1}
+</style>
+</helmet>
+<div class="t" style="min-height: 100%; background: #FFFFFF; padding: 32px; display: flex; flex-direction: column; gap: 20px">
+  <h1 style="font-size: 24px; color: #17233D">案A の状態の見本</h1>
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+    <section class="panel" aria-labelledby="a5-1">
+      <h2 id="a5-1" class="cap">叩き台を作る前(空)</h2>
+      <div class="body">
+        <div style="border: 2px dashed #6B7280; border-radius: 6px; padding: 32px 24px; text-align: center; background: #FFFFFF">
+          <p style="font-weight: 700; color: #17233D">左で条件を入れて「類似案件を検索して叩き台を作る」を押すと、</p>
+          <p>判定・叩き台・根拠にした過去案件がここに出ます。</p>
+          <p class="small mut" style="margin-top: 8px">登録済みの過去見積 38件から、条件の近い案件を探します。</p>
+        </div>
+        <p class="small" style="color: #374151">確定金額の記録: 条件を入れて「叩き台を作る」を押すと、確定金額を記録できます。</p>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="a5-2">
+      <h2 id="a5-2" class="cap">数量の入力エラー</h2>
+      <div class="body">
+        <div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 6px; max-width: 360px">
+          <label class="fld"><span class="lbl" style="color: #8A2E2E">数量(部・枚)</span><input class="inp" type="number" value="0" aria-invalid="true" style="border: 2px solid #8A2E2E"></label>
+          <p class="small" role="alert" style="background: #FDEAEA; color: #8A2E2E; border-radius: 6px; padding: 6px 10px"><b aria-hidden="true">! </b><b>エラー:</b> 数量は1〜1,000,000の整数で入力してください</p>
+        </div>
+        <p class="small">叩き台は出さず、前の結果も消します(入力と結果が食い違わないように)。</p>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="a5-3">
+      <h2 id="a5-3" class="cap">根拠が弱い(パッケージ/紙器・100部の例)</h2>
+      <div class="body">
+        <div class="card" style="border: 2px solid #E8703A; padding: 16px; display: flex; flex-direction: column; gap: 8px">
+          <h3 style="font-size: 18px; color: #17233D">見積の叩き台</h3>
+          <p class="small" style="background: #FBEDE4; color: #5B3A29; border-radius: 6px; padding: 8px 10px"><b>▲ 根拠が弱い叩き台です。</b>いちばん似た過去案件でも類似度 49% です。金額は参考程度の目安です。条件の近い過去見積を登録すると、根拠が強くなります。</p>
+          <p style="display: flex; align-items: baseline; gap: 10px"><span style="font-size: 40px; font-weight: 700; line-height: 1.1; color: #B84A14">¥6,875</span><span class="chip c-no">税抜・概算</span></p>
+          <p class="small">根拠: E-024 化粧箱(型抜き)類似度 49%・単価 55.0円/部。数量差の調整 +25%(上下25%までで、今回は上限で止めています)</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="a5-4">
+      <h2 id="a5-4" class="cap">条件を変えて、叩き台が古くなったとき</h2>
+      <div class="body">
+        <div role="status" style="background: #FDF6E3; border: 2px solid #8A5A00; border-radius: 6px; padding: 10px 14px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap">
+          <p style="flex: 1 1 260px; color: #2B3444"><b style="color: #8A5A00">▲ 条件が変わりました。</b>下の叩き台は前の条件(色: 両面4C)のままです。</p>
+          <button class="btn btn-p" type="button">叩き台を作り直す</button>
+        </div>
+        <div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 6px; background: #EEF1F7">
+          <p class="small" style="display: flex; gap: 4px; flex-wrap: wrap; align-items: center"><b>前の条件:</b> <span class="chip c-line">チラシ</span><span class="chip c-line">A4</span><span class="chip c-line">両面4C</span><span class="chip c-line">3,000部</span> → 今は <span class="chip c-chg">特色1C</span></p>
+          <p style="display: flex; align-items: baseline; gap: 10px"><span style="font-size: 32px; font-weight: 700; line-height: 1.1; color: #374151; text-decoration: line-through">¥11,791</span><span class="small" style="font-weight: 700">前の条件の叩き台</span></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="a5-5">
+      <h2 id="a5-5" class="cap">メモ検索の結果(「特色」3件)と 0件</h2>
+      <div class="body">
+        <div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 8px">
+          <p class="small"><b>「特色」</b>に一致: 3件</p>
+          <p class="small" style="border-bottom: 1px solid #D6DCE8; padding-bottom: 6px"><b>E-033 コーポレート特色2C名刺</b> … 特色番号(DIC/PANTONE)の指定漏れで刷り直し</p>
+          <p class="small" style="border-bottom: 1px solid #D6DCE8; padding-bottom: 6px"><b>E-034 特色2C会社案内リーフ</b> … 特色と用紙の相性で発色が想定と違い、再校で用紙変更</p>
+          <p class="small"><b>E-035 特色1C封筒</b> … 社名ロゴを特色1色で</p>
+          <p class="small mut">属性が違っても、見積のときに確認すべき理由が近い案件を探せます(部分一致の検索)。</p>
+        </div>
+        <p class="small" style="background: #FFFFFF; border: 1px solid #D6DCE8; border-radius: 6px; padding: 8px 12px">「色ムラ」に一致するメモ・手戻り事由は見つかりませんでした。</p>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="a5-6">
+      <h2 id="a5-6" class="cap">確定金額の記録の成功(入力例)と、記録中</h2>
+      <div class="body">
+        <p class="small" role="status" style="background: #E3F0EC; color: #274B43; border-radius: 6px; padding: 8px 12px"><b aria-hidden="true">✓ </b>確定金額を記録しました</p>
+        <div class="card" style="padding: 12px 14px; display: flex; flex-direction: column; gap: 4px">
+          <p class="small" style="display: flex; justify-content: space-between; gap: 8px"><span><span class="chip" style="background: #FDF6E3; color: #8A5A00">入力例</span> 叩き台 ¥12,529 → 確定 <b>¥13,500</b>(+7.8%)</span><button class="btn btn-txt" type="button" style="color: #8A2E2E">この記録を削除する</button></p>
+          <p class="small">理由: 特色の追加納期と色校正の手間を見て上げた</p>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap">
+          <button class="btn" type="button" disabled style="color: #374151; background: #EEF1F7">記録中…</button>
+          <button class="btn" type="button" disabled style="color: #374151; background: #EEF1F7">検索中…</button>
+          <button class="btn btn-p" type="button" disabled style="background: #24365C">登録中…</button>
+        </div>
+        <p class="small">実行中はボタンの文字を「…中」に変えて、押せなくします。</p>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1097}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

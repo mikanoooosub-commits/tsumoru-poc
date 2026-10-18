@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>案C 登録・編集 スマホ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#EEF1F7}
+a{color:#17233D}a:hover{color:#24365C}
+.t{font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;color:#374151;font-size:16px;line-height:1.7;font-variant-numeric:tabular-nums}
+.t *{box-sizing:border-box}
+.t h1,.t h2,.t h3,.t p{margin:0}
+.btn{font-family:inherit;font-weight:700;font-size:16px;line-height:1.3;min-height:44px;padding:8px 14px;border-radius:6px;border:1px solid #6B7280;background:#FFFFFF;color:#17233D;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn-go{background:#E8703A;border-color:#E8703A;color:#17233D}
+.row{display:grid;grid-template-columns:96px 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #D6DCE8}
+.lbl{font-size:14px;font-weight:700;color:#2B3444;line-height:1.4}
+.req{display:block;font-size:14px;font-weight:700;color:#B84A14}
+.opt{display:block;font-size:14px;font-weight:400;color:#6B7280}
+.inp{font-family:inherit;font-size:16px;height:44px;border:1px solid #6B7280;border-radius:6px;background:#FFFFFF;color:#2B3444;padding:0 10px;width:100%}
+.small{font-size:14px;line-height:1.6}
+.tick{position:absolute;width:16px;height:16px;border-color:#6B7280;border-style:solid;border-width:0}
+.tg{display:flex;align-items:center;min-height:44px;gap:6px;padding:0 8px;border:1px solid #6B7280;border-radius:6px;background:#FFFFFF;font-size:16px;color:#2B3444;white-space:nowrap}
+.tg input{width:20px;height:20px;margin:0;accent-color:#17233D}
+</style>
+</helmet>
+<div class="t" style="width: 375px; min-height: 100%; background: #EEF1F7">
+  <header style="background: #17233D; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 8px">
+    <h2 style="font-size: 18px; color: #FFFFFF">控えを書く(過去見積の登録)</h2>
+    <button class="btn" type="button" style="background: transparent; color: #E7ECF6; border-color: #AEB9D4">閉じる</button>
+  </header>
+  <div style="padding: 14px 12px; display: flex; flex-direction: column; gap: 12px">
+    <p class="small" role="alert" style="background: #FDEAEA; color: #8A2E2E; border-radius: 6px; padding: 10px 12px"><b aria-hidden="true">! </b><b>エラー:</b> 原価は1円以上の整数で入力してください</p>
+    <form style="position: relative; background: #FFFFFF; box-shadow: 0 4px 9px rgba(0,0,0,.20); padding: 22px 16px 18px; display: flex; flex-direction: column" aria-label="過去見積の登録">
+      <span class="tick" style="top: 8px; left: 8px; border-top-width: 1px; border-left-width: 1px" aria-hidden="true"></span>
+      <span class="tick" style="top: 8px; right: 8px; border-top-width: 1px; border-right-width: 1px" aria-hidden="true"></span>
+      <span class="tick" style="bottom: 8px; left: 8px; border-bottom-width: 1px; border-left-width: 1px" aria-hidden="true"></span>
+      <span class="tick" style="bottom: 8px; right: 8px; border-bottom-width: 1px; border-right-width: 1px" aria-hidden="true"></span>
+      <p class="small" style="color: #B84A14; font-weight: 700; border-bottom: 2px solid #17233D; padding-bottom: 6px">新しい控え ・ <span style="color: #374151; font-weight: 400">必須 の欄を入れると登録できます</span></p>
+      <label class="row"><span class="lbl">案件名<span class="req">必須</span></span><input class="inp" type="text" value="〇〇スーパー B4折込チラシ"></label>
+      <label class="row"><span class="lbl">種類<span class="req">必須</span></span><select class="inp"><option>チラシ</option></select></label>
+      <label class="row"><span class="lbl">サイズ<span class="req">必須</span></span><select class="inp"><option>B4</option></select></label>
+      <label class="row"><span class="lbl">用紙<span class="req">必須</span></span><select class="inp"><option>コート90(コート系)</option></select></label>
+      <label class="row"><span class="lbl">色<span class="req">必須</span></span><select class="inp"><option>両面4C</option></select></label>
+      <label class="row"><span class="lbl">数量<span class="req">必須</span></span><input class="inp" type="number" value="5000"></label>
+      <label class="row"><span class="lbl">納期<span class="opt">営業日</span></span><input class="inp" type="number" placeholder="例: 5"></label>
+      <label class="row"><span class="lbl">見積金額<span class="opt">税抜</span><span class="req">必須</span></span><input class="inp" type="number" value="19000"></label>
+      <div class="row" style="background: #FDEAEA; margin: 0 -8px; padding: 8px">
+        <label for="c4-cost" class="lbl" style="color: #8A2E2E">原価<span class="req">必須</span></label>
+        <div><input id="c4-cost" class="inp" type="number" placeholder="例: 8000" aria-invalid="true" aria-describedby="c4-cost-e" style="border: 2px solid #8A2E2E"><p id="c4-cost-e" class="small" style="color: #8A2E2E">! 1円以上の整数で入力してください</p></div>
+      </div>
+      <label class="row"><span class="lbl">支給データ<span class="req">必須</span></span><select class="inp"><option>完全データ</option></select></label>
+      <label class="row"><span class="lbl">流用<span class="req">必須</span></span><select class="inp"><option>前回流用可</option></select></label>
+      <fieldset class="row" style="border: 0; border-bottom: 1px solid #D6DCE8; margin: 0; align-items: start">
+        <legend class="lbl" style="float: left; width: 96px; padding-top: 10px">加工<span class="opt">該当だけ</span></legend>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; grid-column: 2"><label class="tg"><input type="checkbox">折り</label><label class="tg"><input type="checkbox">中綴じ</label><label class="tg"><input type="checkbox">無線綴じ</label><label class="tg"><input type="checkbox">型抜き</label><label class="tg"><input type="checkbox">箔押し</label><label class="tg"><input type="checkbox">PP加工</label></div>
+      </fieldset>
+      <label class="row"><span class="lbl">メモ<span class="opt">検索の対象</span></span><input class="inp" type="text" placeholder="毎週リピート 等"></label>
+      <label class="row" style="border-bottom: 0"><span class="lbl">手戻り事由<span class="opt">あれば</span></span><input class="inp" type="text" placeholder="特色番号の指定漏れ 等"></label>
+    </form>
+    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 8px">
+      <button class="btn" type="button">閉じる</button>
+      <button class="btn btn-go" type="button">登録する</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":375,"height":1286}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

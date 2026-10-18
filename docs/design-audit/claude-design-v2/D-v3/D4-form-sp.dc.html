@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>案D 登録・編集 スマホ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F7F8FB}
+.t{font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;color:#374151;font-size:16px;line-height:1.6;font-variant-numeric:tabular-nums}
+.t *{box-sizing:border-box}
+.t h1,.t h2,.t h3,.t p{margin:0}
+.ink{background:#17233D;color:#E7ECF6}
+.btn{font-family:inherit;font-weight:700;font-size:14px;line-height:1.3;min-height:44px;padding:8px 14px;border-radius:6px;border:1px solid #6B7280;background:#FFFFFF;color:#17233D;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.btn-p{background:#E8703A;border-color:#E8703A;color:#17233D;font-size:16px}
+.btn-g{background:transparent;color:#E7ECF6;border-color:#AEB9D4}
+.sec{font-size:14px;font-weight:700;line-height:1.4;color:#2B3444;letter-spacing:.04em;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.lbl{font-size:14px;font-weight:700;color:#2B3444;line-height:1.4;display:flex;align-items:center;gap:6px}
+.inp{font-family:inherit;font-size:16px;height:44px;border:1px solid #6B7280;border-radius:6px;background:#FFFFFF;color:#2B3444;padding:0 10px;width:100%}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.req{font-size:14px;font-weight:700;line-height:1.3;padding:0 6px;border-radius:4px;background:#EEF1F7;color:#374151}
+.req-err{background:#FDEAEA;color:#8A2E2E}
+.opt{font-size:14px;font-weight:400;color:#6B7280}
+.kari{display:inline-block;background:#FDF6E3;color:#8A5A00;font-size:14px;font-weight:700;line-height:1.3;padding:1px 6px;border-radius:4px}
+.small{font-size:14px;line-height:1.55}
+.ck{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 10px;border:1px solid #D6DCE8;border-radius:6px;font-size:14px;color:#2B3444;background:#FFFFFF}
+.ck input{width:20px;height:20px;margin:0;accent-color:#17233D}
+.seg{display:flex;border:1px solid #6B7280;border-radius:6px;overflow:hidden}
+.seg label{flex:1 1 0;min-height:44px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#2B3444;border-left:1px solid #6B7280;background:#FFFFFF}
+.seg label:first-child{border-left:0}
+.seg input{position:absolute;opacity:0;width:1px;height:1px}
+.seg .on{background:#17233D;color:#FFFFFF}
+.blk{background:#FFFFFF;border-top:1px solid #D6DCE8;border-bottom:1px solid #D6DCE8;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+</style>
+</helmet>
+<div class="t" style="width: 375px; min-height: 100%; background: #F7F8FB">
+  <header class="ink" style="padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px">
+    <div style="height: 56px; display: flex; align-items: center; gap: 8px">
+      <button class="btn btn-g" type="button" aria-label="閉じて一覧へ戻る" style="padding: 8px 12px">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 L15 15 M15 5 L5 15"></path></svg>
+      </button>
+      <h1 style="font-size: 18px; color: #FFFFFF; flex: 1">過去見積を登録</h1>
+      <span class="small" style="display: inline-flex; gap: 6px; align-items: center"><span class="kari">仮</span> 合成データ</span>
+    </div>
+    <section aria-labelledby="d4-prev" style="border: 1px solid #24365C; border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px">
+      <h2 id="d4-prev" class="small" style="font-weight: 700; color: #AEB9D4; display: flex; justify-content: space-between; gap: 8px"><span>アーカイブに入る形 <span style="font-weight: 400">入力に合わせて変わります</span></span><span class="kari" style="white-space: nowrap; align-self: flex-start">入力例</span></h2>
+      <p style="font-weight: 700; color: #FFFFFF">サンプル商店 B4折込チラシ</p>
+      <p class="small">チラシ / B4 / コート90 / 両面4C / 5,000部 ・ <b style="color: #FFFFFF">¥19,000</b>(単価 3.8円/部)</p>
+    </section>
+  </header>
+
+  <form style="display: flex; flex-direction: column; gap: 10px; padding-top: 10px" aria-label="過去見積の登録">
+    <p class="small" role="alert" style="margin: 0 12px; background: #FDEAEA; color: #8A2E2E; border: 1px solid #8A2E2E; border-radius: 6px; padding: 10px 12px"><b aria-hidden="true">! </b><b>エラー:</b> 原価は1円以上の整数で入力してください(「数量と金額」)</p>
+
+    <section class="blk" aria-labelledby="d4-s1">
+      <h2 id="d4-s1" class="sec">仕様 <span class="opt">加工のほかは必須</span></h2>
+      <label class="fld"><span class="lbl">案件名 <span class="req">必須</span></span><input class="inp" type="text" value="サンプル商店 B4折込チラシ"></label>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 10px">
+        <label class="fld"><span class="lbl">種類 <span class="req">必須</span></span><select class="inp"><option>チラシ</option></select></label>
+        <label class="fld"><span class="lbl">サイズ <span class="req">必須</span></span><select class="inp"><option>B4</option></select></label>
+        <label class="fld"><span class="lbl">用紙 <span class="req">必須</span></span><select class="inp"><option>コート90</option></select></label>
+        <label class="fld"><span class="lbl">色 <span class="req">必須</span></span><select class="inp"><option>両面4C</option></select></label>
+      </div>
+      <label class="fld"><span class="lbl">支給データ <span class="req">必須</span></span><select class="inp"><option>完全データ</option></select></label>
+      <fieldset style="border: 0; padding: 0; margin: 0">
+        <legend class="lbl" style="margin-bottom: 4px">流用 <span class="req">必須</span></legend>
+        <div class="seg"><label><input type="radio" name="d4-reuse">新規</label><label class="on"><input type="radio" name="d4-reuse" checked>前回流用可</label></div>
+      </fieldset>
+      <fieldset style="border: 0; padding: 0; margin: 0">
+        <legend class="lbl" style="margin-bottom: 4px">加工 <span class="opt">あてはまるものだけ</span></legend>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px"><label class="ck"><input type="checkbox">折り</label><label class="ck"><input type="checkbox">中綴じ</label><label class="ck"><input type="checkbox">無線綴じ</label><label class="ck"><input type="checkbox">型抜き</label><label class="ck"><input type="checkbox">箔押し</label><label class="ck"><input type="checkbox">PP加工</label></div>
+      </fieldset>
+    </section>
+
+    <section class="blk" aria-labelledby="d4-s2" style="border-top: 2px solid #8A2E2E; border-bottom: 2px solid #8A2E2E">
+      <h2 id="d4-s2" class="sec">数量と金額 <span class="small" style="color: #8A2E2E; font-weight: 700">! 1件の誤り</span></h2>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 10px">
+        <label class="fld"><span class="lbl">数量 <span class="req">必須</span></span><input class="inp" type="number" value="5000" style="text-align: right"></label>
+        <label class="fld"><span class="lbl">納期 <span class="opt">営業日</span></span><input class="inp" type="number" placeholder="例: 5" style="text-align: right"></label>
+        <label class="fld"><span class="lbl">見積金額(税抜) <span class="req">必須</span></span><input class="inp" type="number" value="19000" style="text-align: right"></label>
+        <label class="fld"><span class="lbl" style="color: #8A2E2E">原価 <span class="req req-err">必須</span></span><input class="inp" type="number" placeholder="例: 8000" aria-invalid="true" style="border: 2px solid #8A2E2E; text-align: right"></label>
+      </div>
+      <p class="small" style="color: #8A2E2E"><b aria-hidden="true">! </b>原価は1円以上の整数で入力してください</p>
+    </section>
+
+    <section class="blk" aria-labelledby="d4-s3">
+      <h2 id="d4-s3" class="sec">メモ <span class="opt">メモ検索の対象</span></h2>
+      <label class="fld"><span class="lbl">メモ</span><input class="inp" type="text" placeholder="毎週リピート 等"></label>
+      <label class="fld"><span class="lbl">手戻り事由 <span class="opt">あれば</span></span><input class="inp" type="text" placeholder="特色番号の指定漏れで刷り直し 等"></label>
+    </section>
+
+    <!-- 下に固定の操作バー(実装では画面の下に固定。見本ではボードの最下部に置く) -->
+    <div style="background: #FFFFFF; border-top: 1px solid #D6DCE8; box-shadow: 0 -2px 8px rgba(23,35,61,.12); padding: 10px 12px; display: grid; grid-template-columns: 1fr 2fr; gap: 8px">
+      <button class="btn" type="button">閉じる</button>
+      <button class="btn btn-p" type="button">登録する</button>
+    </div>
+  </form>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":375,"height":1300}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
