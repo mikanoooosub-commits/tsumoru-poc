@@ -8,6 +8,7 @@
 - 同種の類似上位から単価中央値×数量スケールで叩き台を生成
 - ネット印刷の自動見積「対象外」5型の判定（各社公式の入稿ガイド/FAQを一次出典に）
 - メモ・手戻り事由の語句検索（Neon の ILIKE）
+- 「特記・要望」の文があるときは、AI の埋め込み（Voyage AI）で文の意味の近い過去案件も根拠に選ぶ（pgvector。叩き台の金額の出し方は同じ。キーが無ければ条件の近さだけ）
 
 設計の詳細は [`docs/SPEC.md`](docs/SPEC.md) / [`docs/spec.html`](docs/spec.html) を参照。
 
@@ -30,6 +31,14 @@ npm install
 
 ```
 DATABASE_URL=postgresql://<user>:<password>@<host>/<db>?sslmode=require
+VOYAGE_API_KEY=<Voyage AI のキー>   # 任意。意味検索を使うときだけ(無ければ条件の近さだけで動く)
+```
+
+既存の過去見積に意味検索の埋め込みを付けるとき(マイグレーション 0001 の適用後):
+
+```bash
+npx tsx scripts/embed-backfill.ts          # 予行(件数と文の長さだけ。外に送らない・書かない)
+npx tsx scripts/embed-backfill.ts --write  # Voyage AI に送って DB に書く
 ```
 
 初回のみ、スキーマ適用とシード投入:
@@ -50,7 +59,7 @@ http://localhost:3000 を開く。
 ## デプロイ（Vercel）
 
 1. このリポジトリを Vercel で import
-2. 環境変数 `DATABASE_URL` に Neon の接続文字列を設定（サーバ限定。クライアントに露出させない）
+2. 環境変数 `DATABASE_URL` に Neon の接続文字列を設定（サーバ限定。クライアントに露出させない）。意味検索を使うなら `VOYAGE_API_KEY` も（`NEXT_PUBLIC_` を付けない）
 3. `git push` で自動デプロイ
 
 ## 注意

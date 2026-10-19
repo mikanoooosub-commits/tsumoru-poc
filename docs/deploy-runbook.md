@@ -12,7 +12,8 @@
 | ソース | GitHub `mikanoooosub-commits/tsumoru-poc`(ブランチ `master`) |
 | ホスティング | Vercel(GitHub 連携で `master` への push が自動デプロイ【推測・要確認: Production Branch の設定】) |
 | DB | Neon(サーバーレス Postgres)。接続は HTTP(`@neondatabase/serverless`) |
-| 環境変数 | `DATABASE_URL` の1つだけ(Vercel の Project Settings → Environment Variables / ローカルは `poc-next/.env.local`) |
+| 環境変数 | `DATABASE_URL`(必須)と `VOYAGE_API_KEY`(意味検索・WO-023。無ければ意味検索なしで動く)。Vercel の Project Settings → Environment Variables / ローカルは `poc-next/.env.local` |
+| 外部 API | Voyage AI(埋め込み。`voyage-4`)。サーバーからだけ呼ぶ。「学習に使わせない」設定にする(代表) |
 | フレームワーク | Next.js 16.3.0 / React 19 / Drizzle ORM |
 | 公開日 | 2026-08-11(初回ビルド失敗 → 修正して成功。ISSUE-P-003) |
 | 認証 | なし(公開デモ)。→ ISSUE-P-012 |
@@ -26,6 +27,11 @@
 - `.env.local` から値をコピーするときは、**クォートの内側だけ**をコピーする。値をチャット・コミット・ドキュメントに貼らない。
 - 設定後は **Redeploy** が必要(環境変数の変更は既存デプロイに反映されない)。
 - 値を差し替えるときは Neon 側のパスワード再発行(漏えい時)も忘れず、Vercel と `.env.local` の両方を更新する。
+
+### 2-2. `VOYAGE_API_KEY` の書き方(WO-023)
+- `DATABASE_URL` と同じく**クォート無し**で入れる(コードは前後の空白・引用符を除くが、Vercel にはそのまま貼る)。名前に `NEXT_PUBLIC_` を付けない(付けるとブラウザに出る)。
+- Vercel は Production に入れる。**入れた後・変えた後は Redeploy**(既存のデプロイには効かない)。push の前に入れておけば、その push のデプロイから効く。
+- キーが無い・間違っているときも画面は止まらない(根拠は条件の近さだけで選び、「文の意味の近さは使えませんでした(…)」と出る)。
 
 ## 3. 通常のデプロイ(コードを更新する)
 
@@ -53,6 +59,7 @@ npm run db:migrate       # Neon に適用 ← 本番DBに効く
 - **本番DBと共有なので、適用前に戻しSQLとバックアップ(Neon のブランチ/スナップショット【推測・要確認】)を用意する。**
 - コードのデプロイとDB適用の順序: カラム追加は「DB適用 → コードデプロイ」。列の削除・改名は2段階に分ける。
 - `npm run db:push` は差分を直接適用する。**本番では使わない**(履歴が残らない)。
+- **WO-023(0001・意味検索の列)は必ず「DB 適用 → push」の順**。Drizzle の insert は全列(新しい `embedding` 列も)を書くので、列が無い DB に新しいコードが載ると登録・記録が失敗する。手順は `work-orders/WO-023-report.md`「PM が行う DB 適用と埋め込みの書き込み」。予行演習と戻しの SQL は `drizzle/rollback/0001_rehearsal.sql`・`0001_down.sql`(戻すときは「コードを戻す → DB を戻す」の順)。
 - シード(`npm run db:seed`)は**全表を delete してから**36件を入れ直す。**本番DBに対して実行すると登録済みデータが全部消える**。初回構築専用。
 
 ## 5. 戻し方(ロールバック)

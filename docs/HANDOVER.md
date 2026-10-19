@@ -1,12 +1,12 @@
 # HANDOVER — つもる ― 見積アシスト PoC(poc-next)
 
-作成: 2026-10-12(WO-002) / 更新: 2026-10-13(WO-003)・2026-10-19(WO-022) / 状態: Phase 1 実装済み・本番公開済み・ドキュメント整備済み。**WO-022(画面の全面作り直し)は commit のみ・未 push**(本番反映は受入後に PM が代表の確認を取って行う)
+作成: 2026-10-12(WO-002) / 更新: 2026-10-13(WO-003)・2026-10-19(WO-022)・2026-10-20(WO-023) / 状態: Phase 1 実装済み・本番公開済み(WO-022 まで)。**WO-023(意味検索)は commit のみ・未 push・DB 未適用**(順番: 代表が Voyage AI のキーを用意 → PM がマイグレーション 0001 を適用し埋め込みを付ける → 確かめてから push)
 > 新しい作業者(人/AI)が、この1枚と下記リンクで同じ状態から再開できることを目的にする。真実の所在はファイル(会話ではない)。
 
 ## 1. これは何か
 地場印刷会社向けの見積支援PoC。過去見積を溜め、引合い条件に似た過去案件から**叩き台・ネット印刷で自動で完結しない条件の判定(旧称: 自動見積の対象外判定)・手戻り注意**を出す。AI研修課題(印刷業界リサーチ)の成果物。
 - 本番: https://tsumoru-poc-lovat.vercel.app/ ／ リポジトリ: GitHub `mikanoooosub-commits/tsumoru-poc`(`master`)
-- 構成: Next.js 16 + Neon(Postgres)+ Drizzle + Vercel。認証なし。データは合成(仮)36件+登録分(現在38件)。
+- 構成: Next.js 16 + Neon(Postgres・pgvector)+ Drizzle + Vercel + Voyage AI(埋め込み・WO-023)。認証なし。データは合成(仮)36件+登録分(現在38件)。
 
 ## 2. 読む順番
 1. [SPEC.md](SPEC.md) — 設計と判断(as-built)。画面の決まりは [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md)(§0 に画面の骨格・§4 に部品とファイルの対応)・点検の記録は [design-audit.md](design-audit.md)・WO-022 の案と評価は `design-audit/`(決定案の見本は `design-audit/claude-design-v2/D1〜D5`)
@@ -23,13 +23,14 @@
 - WO-002 で as-built ドキュメント6点+画面確認(スクショ12枚)を整備。`docs/SPEC.md` の公開状態の記述を修正。
 - WO-009(2026-10-13): 画面を印刷版デザインシステムに整備(DESIGN-SYSTEM.md・design-audit.md)。記録・メモ検索を常時表示に。機能・計算・DBは変更なし。
 - **WO-022(2026-10-19)**: 画面を全面的に作り直した(Claude Design の決定案 D 直し3・D86)。紺の帯+紺の条件パネル+右に叩き台と根拠、判定の帯を金額のすぐ下、根拠はたためる行の一覧、スマホの下の記録バー、一覧ダイアログを中央に、書体 Zen Kaku Gothic New。画面の部品を `src/components/estimate/` に分けた。**計算(`scoring.ts`)・Server Action・DB は変えていない**(12通りの条件で表示の値が前後一致、書き込み試験は D45 の手順で控えと全行一致)。記録: change-log CHANGE-P-020・test-scenarios「WO-022 のやり直し」・スクショ `screenshots/wo022/`・控え `backup/2026-10-18-before-WO022.json`。
+- **WO-023(2026-10-20・段1)**: 意味検索を追加。条件パネルに「特記・要望(任意)」、文があれば Voyage AI(`voyage-4`)の埋め込みで過去案件との意味の近さを測り、根拠の4件の選び方に「意味の点(最大24点・仮)」を足す。叩き台の式・判定の条件は不変、特記が空なら今までと同じ結果(12通りで一致)。キーが無い・失敗したときは条件の点だけで出して1行で知らせる。スキーマに `embedding vector(1024)`・`embedding_model` を NULL 許容で追加(`drizzle/0001_semantic_search.sql`・戻しは `drizzle/rollback/`)。既存の行の埋め込みは `scripts/embed-backfill.ts`(既定は予行)。記録: SPEC §5-2・change-log CHANGE-P-021・test-scenarios「WO-023 意味検索」・スクショ `screenshots/wo023/`。
 - WO-003(2026-10-13): 確定金額をDBに保存(P-005。スキーマ変更なし。新しい行を `status='draft'`・`source='tool'`・`cost=0`=原価未入力で insert)。書込み系の画面確認(T-08b・T-13〜T-16・T-20)を実施。P-003 再発防止・P-007/008/009/011 を修正、spec.html 修正。DBの控えと突き合わせツール `scripts/db-snapshot.ts` を追加。
 
 ## 4. やらなかったこと(意図的)
 | 項目 | 理由 |
 |---|---|
 | 認証 | 公開デモの方針(SPEC §1)。実データを入れる前に必須(ISSUE-P-012) |
-| 意味検索(pgvector) | Phase 2(SPEC §6)。まず語句検索で成立させる |
+| ~~意味検索(pgvector)~~ | 2026-10 WO-023 で実装(SPEC §5-2) |
 | 見積書PDF・メール連携・MIS連携 | S3本体。PoCの対象外(SPEC §8) |
 | 記録行の昇格(draft→confirmed) | 未実装。昇格時は**原価の入力を必須**にすること(`cost=0` は「未入力」の意味) |
 | (解消)書込みを伴う画面確認 | WO-002 では未実施 → WO-003 で実施(D45。試験行は削除し、控えと突き合わせ済) |
@@ -49,6 +50,7 @@
 cd poc-next
 npm install
 # .env.local に DATABASE_URL を設定(値は Neon の管理画面。コミットしない・チャットに貼らない)
+# 意味検索を使うなら VOYAGE_API_KEY も(Voyage AI の管理画面。無くても動く=意味検索なしで条件の点だけ)
 npm run dev            # http://localhost:3000(next dev は AGENTS.md の注記を書き戻すことがある。確認は npm run build → npx next start を勧める)
 ```
 - 動作確認の手順は test-scenarios.md を参照。**書込み操作は本番DBに効く**(認証なし・DB共有)。書込み試験は D45 の方針(試験行に `WO003テスト`・`WO022テスト` などの目印を入れる→画面から削除→`npx tsx scripts/db-snapshot.ts diff docs/backup/…json` で控えと突き合わせ)で行う。**`npm run db:seed` は全表を消すので実行しない**。
