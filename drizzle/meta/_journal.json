@@ -8,6 +8,13 @@
       "when": 1786263124008,
       "tag": "0000_luxuriant_toad_men",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792421523809,
+      "tag": "0001_semantic_search",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,7 @@ import {
   integer,
   date,
   timestamp,
+  vector,
 } from 'drizzle-orm/pg-core';
 
 // ── ENUM(選択肢を縛る。辞書テーブルにしない=過剰分割を避ける) ──
@@ -87,7 +88,10 @@ export const estimates = pgTable('estimates', {
     .defaultNow()
     .notNull()
     .$onUpdate(() => new Date()),
-  // (将来) embedding vector(N) を追加して pgvector 意味検索
+  // 意味検索(WO-023): 案件の文を Voyage AI(voyage-4・1024次元)で埋め込んだもの。pgvector の vector 型。
+  // NULL 許容(append-only。既存の INSERT は列を指定しないため)。NULL の行は「意味の点 0」として扱う(計算には使わない)
+  embedding: vector('embedding', { dimensions: 1024 }),
+  embeddingModel: text('embedding_model'), // どのモデルで作ったか(モデルを替えたとき、古い埋め込みを見分けて作り直すため)
 });
 
 export type Estimate = typeof estimates.$inferSelect;
