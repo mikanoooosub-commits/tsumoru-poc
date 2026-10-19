@@ -100,6 +100,7 @@ ENUM(7種): `estimate_status`(reference/draft/confirmed/issued) / `estimate_sour
 | `src/app/error.tsx` / `not-found.tsx` | 想定外のエラー・存在しないページの日本語の画面 |
 | `src/app/actions.ts` | Server Actions(§3) |
 | `src/lib/embedding.ts` | Voyage AI の呼び出し(`embedTexts`・時間切れ8秒・応答を1つずつ検証)と、過去案件を1つの文にする `caseText`(外に送る中身)。サーバーと scripts からだけ使う |
+| `scripts/migrate-rehearsal.ts` | マイグレーションの予行演習(1つの接続で BEGIN → SQL → 確かめ → ROLLBACK。何も残さない)。本番に適用する前に使う |
 | `scripts/embed-backfill.ts` | 母集団の埋め込みの無い行に埋め込みを付ける。既定は予行(外に送らない・書かない)、`--write` で書く |
 | `src/lib/input.ts` | 入力の厳密な解釈(`strictInt`・`INT4_MAX`・`escapeLike`・特記の上限 `REQUEST_MAX`)。`'use server'` ファイルには非同期関数しか置けないため分離 |
 | `scripts/db-snapshot.ts` | DB の控え取り(`dump`)と突き合わせ(`diff`。`--ignore-embedding` で埋め込みの2列を外して比べる)。**読み取り専用**。書込み試験の前後で使う |
