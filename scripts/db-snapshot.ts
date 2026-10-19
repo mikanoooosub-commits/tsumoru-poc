@@ -1,6 +1,9 @@
 // DBの控え取りと突き合わせ(読み取り専用。書き込み・削除はしない)
 //   npx tsx scripts/db-snapshot.ts dump <出力JSON>   … customers/papers/estimates の全行を書き出す
 //   npx tsx scripts/db-snapshot.ts diff <控えJSON>   … 現在のDBと控えを突き合わせる(差があれば終了コード1)
+//   npx tsx scripts/db-snapshot.ts diff <控えJSON> --ignore-embedding
+//        … 意味検索の列(embedding・embedding_model。WO-023)を両方から外して突き合わせる。
+//          列を足す前の控えとの比較や、埋め込みを書いた後に「ほかの列が変わっていない」ことを確かめるときに使う
 // 接続文字列は .env.local から読み、画面・ファイルには一切出さない。
 import { config } from 'dotenv';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -33,6 +36,11 @@ async function takeSnapshot(): Promise<Snapshot> {
 }
 
 // 行を id(papers は name)で対応づけ、JSON文字列で比較する
+const EMBED_COLS = ['embedding', 'embedding_model'];
+function withoutEmbedding(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  return rows.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !EMBED_COLS.includes(k))));
+}
+
 function compareTable(name: string, key: string, before: Record<string, unknown>[], after: Record<string, unknown>[]) {
   const lines: string[] = [];
   const b = new Map(before.map((r) => [String(r[key]), JSON.stringify(r)]));
@@ -46,7 +54,8 @@ function compareTable(name: string, key: string, before: Record<string, unknown>
 }
 
 async function main() {
-  const [mode, file] = process.argv.slice(2);
+  const [mode, file, flag] = process.argv.slice(2);
+  const ignoreEmbedding = flag === '--ignore-embedding';
   if (!file || (mode !== 'dump' && mode !== 'diff')) {
     console.error('使い方: tsx scripts/db-snapshot.ts dump|diff <JSONファイル>');
     process.exit(2);
@@ -63,10 +72,13 @@ async function main() {
   const saved = JSON.parse(readFileSync(file, 'utf8')) as Snapshot;
   console.log('控え件数:', JSON.stringify(saved.counts));
   console.log('現在件数:', JSON.stringify(now.counts));
+  if (ignoreEmbedding) console.log('※ embedding・embedding_model の列は外して比べています');
   const diffs = [
     ...compareTable('customers', 'id', saved.customers, now.customers),
     ...compareTable('papers', 'name', saved.papers, now.papers),
-    ...compareTable('estimates', 'id', saved.estimates, now.estimates),
+    ...(ignoreEmbedding
+      ? compareTable('estimates', 'id', withoutEmbedding(saved.estimates), withoutEmbedding(now.estimates))
+      : compareTable('estimates', 'id', saved.estimates, now.estimates)),
   ];
   if (diffs.length === 0) {
     console.log('突き合わせ結果: 全行一致(差なし)');
