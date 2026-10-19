@@ -1,4 +1,5 @@
--- WO-023 0001 の予行演習(Neon の SQL Editor に「全部まとめて1回」で貼って実行する。最後が ROLLBACK なので何も残らない)
+-- WO-023 0001 の予行演習。ふつうは `npx tsx scripts/migrate-rehearsal.ts drizzle/0001_semantic_search.sql`(同じ内容を1つの接続で流す)。
+-- Neon の SQL Editor で流すときは、この全部を「まとめて1回」で貼って実行する。最後が ROLLBACK なので何も残らない
 -- Postgres は DDL もトランザクションに入れられる(CREATE EXTENSION も取り消せる)
 BEGIN;
   CREATE EXTENSION IF NOT EXISTS vector;
