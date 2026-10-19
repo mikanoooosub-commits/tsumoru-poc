@@ -9,9 +9,14 @@ export type MemoRow = {
   reason: string | null; source: string; amount: number; draftAmount: number | null;
 };
 
+// 意味検索(WO-023)を使えたか。none=自由文が空 / ok=使えた(matched=意味の点が付いた過去案件の数) / off=使えなかった(理由の文)
+export type SemanticState = { kind: 'none' } | { kind: 'ok'; matched: number } | { kind: 'off'; message: string };
+
 // 叩き台を作った結果(EstimateTool の run() が作る)
 export type Result = {
   q: Query;
+  text: string;          // 叩き台を出した時点の「特記・要望」(前後の空白を除いたもの。空なら '')
+  sem: SemanticState;
   detect: DetectHit[];
   basis: Scored[];
   strong: Scored[];

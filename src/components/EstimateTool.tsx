@@ -6,14 +6,14 @@
 import { useRef, useState, useTransition } from 'react';
 import {
   type EstimateRow, type Query,
-  rank, detect, buildDraft, unitOf,
+  rank, detect, buildDraft, unitOf, meaningPoints, type Similarities,
   TYPES, SIZES, COLORS, FINS, DATA_STATES, REUSES,
 } from '@/lib/scoring';
-import { parseQty, QTY_ERROR } from '@/lib/input';
-import { saveEstimate, deleteEstimate, searchMemos, recordFinalAmount, type FormState } from '@/app/actions';
+import { parseQty, QTY_ERROR, REQUEST_MAX, REQUEST_ERROR } from '@/lib/input';
+import { saveEstimate, deleteEstimate, searchMemos, recordFinalAmount, semanticScores, type FormState } from '@/app/actions';
 import type { ToolRecord } from '@/db/queries';
 import { WEAK_PCT } from './estimate/ui';
-import type { Paper, MemoRow, Result, Explain } from './estimate/types';
+import type { Paper, MemoRow, Result, Explain, SemanticState } from './estimate/types';
 import { useMediaQuery, MOBILE_QUERY } from './estimate/useMediaQuery';
 import AppBar from './estimate/AppBar';
 import ConditionPanel, { Mechanism, type ConditionValues } from './estimate/ConditionPanel';
@@ -21,6 +21,7 @@ import StaleNotice, { type Change } from './estimate/StaleNotice';
 import JudgeBand from './estimate/JudgeBand';
 import DraftPanel from './estimate/DraftPanel';
 import BasisList from './estimate/BasisList';
+import SemanticNotice from './estimate/SemanticNotice';
 import RecordPanel from './estimate/RecordPanel';
 import MemoSearch from './estimate/MemoSearch';
 import MobileActionBar from './estimate/MobileActionBar';
@@ -46,6 +47,10 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
   const [qtyErr, setQtyErr] = useState('');
   const [ds, setDs] = useState(DATA_STATES[0]);
   const [reuse, setReuse] = useState(REUSES[0]);
+  // 特記・要望(WO-023)。空なら意味検索をしない(外に送らない)
+  const [request, setRequest] = useState('');
+  const [reqErr, setReqErr] = useState('');
+  const [running, startRun] = useTransition(); // 意味検索の返事を待っている間
   // 加工のチェックは画面の状態(DOM)をそのまま読む。React の状態に写すと、チェックの付け方によっては
   // 画面にはチェックが見えるのに叩き台に渡らないことがあった(WO-016・対象外の表示の件)
   const finRef = useRef<HTMLFieldSetElement>(null);
@@ -61,28 +66,29 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
   const [openRows, setOpenRows] = useState<Set<number>>(new Set());
   const [recorded, setRecorded] = useState(false);                  // いまの叩き台を記録したか
 
-  // 叩き台を作る。数量が不正なら false
-  function run(): boolean {
-    // 数量は黙って直さない(F-02・F-03)。不正なら叩き台を出さず、前の結果も消して入力と結果が食い違わないようにする
+  // 叩き台を作るための条件を読む。数量が不正なら null
+  // 数量は黙って直さない(F-02・F-03)。不正なら叩き台を出さず、前の結果も消して入力と結果が食い違わないようにする
+  function readQuery(): Query | null {
     const q1 = parseQty(qty);
-    if (q1 === null) { setQtyErr(QTY_ERROR); setRes(null); return false; }
+    if (q1 === null) { setQtyErr(QTY_ERROR); setRes(null); return null; }
     setQtyErr('');
-    const q: Query = {
+    return {
       type, size, family: paperFamily.get(paper) ?? '', color,
       qty: q1, finishing: readFin(), dataState: ds, reuse,
     };
-    const { basis, strong } = rank(q, estimates);
+  }
+  // 結果を出す。sims=文の意味の近さ(自由文が空・使えないときは null=条件の点だけ)
+  function apply(q: Query, text: string, sims: Similarities | null, sem: SemanticState) {
+    const { basis, strong } = rank(q, estimates, sims);
     setResPaper(paper);
-    setRes({ q, detect: detect(q), basis, strong, draft: buildDraft(basis, q) });
+    setRes({ q, text, sem, detect: detect(q), basis, strong, draft: buildDraft(basis, q) });
     // 表示の初期化: いちばん似た1件だけ行を開く・記録の札を「未記録」に戻す
     const top = basis.length ? basis.reduce((a, b) => (b.pct > a.pct ? b : a)) : null;
     setOpenRows(new Set(top ? [top.r.id] : []));
     setRecorded(false);
-    return true;
   }
-  // ボタン・Enter から叩き台を作る。スマホでは条件をたたみ、叩き台の見出しへ移る(F-25)
-  function runAndShow() {
-    if (!run()) return;
+  // 結果を出した直後の画面の動き。スマホでは条件をたたみ、叩き台の見出しへ移る(F-25)
+  function showResult() {
     if (basisOpen === null) setBasisOpen(!isMobile); // 最初の1回だけ: PC は根拠を開く・スマホはたたむ
     if (isMobile) {
       setCondOpen(false);
@@ -93,6 +99,34 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
         h.focus({ preventScroll: true });
       });
     }
+  }
+  // ボタン・Enter から叩き台を作る。自由文があるときだけ、サーバーで文の意味の近さを測ってから出す(WO-023)
+  function runAndShow() {
+    if (running) return;
+    const q = readQuery();
+    if (!q) return;
+    const text = request.trim();
+    if (text.length > REQUEST_MAX) { setReqErr(REQUEST_ERROR); setRes(null); return; }
+    setReqErr('');
+    if (!text) { apply(q, '', null, { kind: 'none' }); showResult(); return; }
+    startRun(async () => {
+      let sem: SemanticState;
+      let sims: Similarities | null = null;
+      try {
+        const r = await semanticScores(text);
+        if (!r.ok && r.reason === 'invalid') { setReqErr(r.message); setRes(null); return; }
+        if (r.ok) {
+          sims = r.sims;
+          sem = { kind: 'ok', matched: Object.values(r.sims).filter((v) => meaningPoints(v) > 0).length };
+        } else {
+          sem = { kind: 'off', message: r.message };
+        }
+      } catch {
+        sem = { kind: 'off', message: 'サーバーにつながらなかったため' }; // 通信が切れたときも、条件の点だけで出す(止めない)
+      }
+      apply(q, text, sims, sem);
+      showResult();
+    });
   }
 
   // ── 登録/編集フォーム(Server Action・登録後も閉じずにメッセージ表示) ──
@@ -193,11 +227,13 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
     if (!res || !res.draft) return;
     const amount = /^\d+$/.test(recAmount.trim()) ? Number(recAmount.trim()) : 0;
     if (amount < 1) { setRecMsg({ ok: false, message: '確定金額は1円以上の整数で入力してください(例: 13500)' }); showAmountField(); return; }
+    const shownDraft = res.draft.amount;
     startRecord(async () => {
       const r = await recordFinalAmount({
         type: res.q.type, size: res.q.size, paper: resPaper, color: res.q.color, qty: res.q.qty,
         finishing: res.q.finishing, dataState: res.q.dataState, reuse: res.q.reuse,
         amount, reason: recReason,
+        request: res.text, shownDraft, // 自由文も送り、サーバーが同じ手順で叩き台を再計算する(WO-023)
       });
       setRecMsg(r);
       if (r?.ok) { setRecAmount(''); setRecReason(''); setRecorded(true); setHistOpen(true); }
@@ -219,6 +255,7 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
   const values: ConditionValues = { type, size, paper, color, qty, ds, reuse };
   const defaults: ConditionValues = { type: TYPES[0], size: SIZES[0], paper: defaultPaper, color: COLORS[0], qty: DEFAULT_QTY, ds: DATA_STATES[0], reuse: REUSES[0] };
   const finText = (f: string[]) => (f.length ? f.join('・') : '加工なし');
+  const short = (t: string) => (t.length > 24 ? `${t.slice(0, 24)}…` : t); // 条件の1行・帯に出す特記は先頭24文字まで
   const qtyText = (raw: string) => { const n = parseQty(raw); return n === null ? (raw.trim() || '(空)') : `${n.toLocaleString()}部`; };
   const condItems = res ? [
     { value: res.q.type, changed: res.q.type !== defaults.type },
@@ -229,6 +266,7 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
     { value: finText(res.q.finishing), changed: res.q.finishing.length > 0 },
     { value: res.q.dataState, changed: res.q.dataState !== defaults.ds },
     { value: res.q.reuse, changed: res.q.reuse !== defaults.reuse },
+    ...(res.text ? [{ value: `特記: ${short(res.text)}`, changed: true }] : []),
   ] : [];
   const changes: Change[] = [];
   if (res) {
@@ -241,6 +279,8 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
     add('加工', finText(res.q.finishing), finText(finView));
     add('支給データ', res.q.dataState, ds);
     add('流用', res.q.reuse, reuse);
+    // 特記は全文で比べ、帯には先頭だけを出す(長い文が先頭24文字だけ同じでも「変わった」と出すため)
+    if (res.text !== request.trim()) changes.push({ label: '特記・要望', from: res.text ? short(res.text) : '(なし)', to: request.trim() ? short(request.trim()) : '(なし)' });
   }
 
   const recordInDraft = canRecord && !isMobile; // PC は叩き台の中(内訳の右)に記録欄を置く
@@ -266,6 +306,7 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
           set={{ setType, setSize, setPaper, setColor, setQty, setDs, setReuse }}
           papers={papers} qtyErr={qtyErr} finRef={finRef} finView={finView} onFinChange={() => setFinView(readFin())}
           onRun={runAndShow}
+          request={request} setRequest={setRequest} reqErr={reqErr} running={running}
           collapsed={isMobile && !!res && !condOpen} onExpand={() => setCondOpen(true)} hasResult={!!res}
           summary={condItems.map((c, i) => <span key={i}>{i > 0 && ' / '}{c.changed ? <b>{c.value}</b> : c.value}</span>)}
           showMechanism={!isMobile}
@@ -290,7 +331,9 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
               {/* 叩き台が出ないとき(根拠が0件)も、判定に当たれば出力の先頭に帯を出す */}
               {!res.draft && <JudgeBand hits={res.detect} />}
               <DraftPanel res={res} ex={explain} condItems={condItems} recordSlot={recordInDraft ? recordPanel(false) : null} />
+              <SemanticNotice sem={res.sem} />
               <BasisList
+                sem={res.sem}
                 basis={res.basis} notesRows={notesRows} total={estimates.length} sameType={sameType}
                 bestId={best?.r.id ?? null} open={basisOpen ?? !isMobile} onToggle={setBasisOpen}
                 openRows={openRows}

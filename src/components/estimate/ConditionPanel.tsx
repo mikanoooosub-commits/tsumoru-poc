@@ -1,7 +1,7 @@
 // 引合いの条件(左の紺の面)。値と状態は EstimateTool が持ち、ここは表示と入力の受け渡しだけ
 import { TYPES, SIZES, COLORS, FINS, DATA_STATES, REUSES } from '@/lib/scoring';
-import { QTY_MAX } from '@/lib/input';
-import { Kari, selectOnFocus, onEnter } from './ui';
+import { QTY_MAX, REQUEST_MAX } from '@/lib/input';
+import { Kari, selectOnFocus, onEnter, BusyLabel } from './ui';
 import type { Paper } from './types';
 
 export type ConditionValues = {
@@ -17,7 +17,9 @@ export function Mechanism({ light = false }: { light?: boolean }) {
   return (
     <details className={`fold mech${light ? ' light' : ''}`}>
       <summary><span className="tw" aria-hidden="true">▸</span>仕組みと出典について</summary>
-      <p>引合いの特徴を過去見積と重み付きで突き合わせ(満点122点→100%に直す)、同じ種類の類似上位から単価の中央値×数量の調整で叩き台を出す、説明できる方式です。ネット印刷で自動で完結しない条件(人の確認・個別見積が入る)の判定は、各社公式の入稿ガイド・仕様・FAQ に基づきます。データは登録済みの過去見積から取得しています。</p>
+      <p>引合いの特徴を過去見積と重み付きで突き合わせ(満点122点→100%に直す)、同じ種類の類似上位から単価の中央値×数量の調整で叩き台を出す、説明できる方式です。</p>
+      <p>「特記・要望」に文を入れたときは、AI の埋め込み(Voyage AI)で文の意味の近さも測り、最大24点 <Kari /> を足して根拠の4件を選びます。送るのは、その文と、過去案件の案件名・仕様・メモ・手戻り事由だけです(金額・原価は送りません)。叩き台の金額の出し方は同じで、変わるのは根拠の選び方だけです。</p>
+      <p>ネット印刷で自動で完結しない条件(人の確認・個別見積が入る)の判定は、各社公式の入稿ガイド・仕様・FAQ に基づきます。データは登録済みの過去見積から取得しています。</p>
     </details>
   );
 }
@@ -30,7 +32,12 @@ function Mark({ changed }: { changed: boolean }) {
 export default function ConditionPanel({
   values, defaults, set, papers, qtyErr, finRef, finView, onFinChange, onRun,
   collapsed, onExpand, hasResult, summary, showMechanism,
+  request, setRequest, reqErr, running,
 }: {
+  request: string;           // 「特記・要望」の自由文(WO-023。意味検索に使う・任意)
+  setRequest: (v: string) => void;
+  reqErr: string;
+  running: boolean;          // 意味検索の返事を待っている間(ボタンを「検索中…」にする)
   values: ConditionValues;
   defaults: ConditionValues;
   set: ConditionSetters;
@@ -50,7 +57,7 @@ export default function ConditionPanel({
   const changed = {
     type: type !== defaults.type, size: size !== defaults.size, paper: paper !== defaults.paper,
     color: color !== defaults.color, qty: qty.trim() !== defaults.qty, ds: ds !== defaults.ds,
-    reuse: reuse !== defaults.reuse, fin: finView.length > 0,
+    reuse: reuse !== defaults.reuse, fin: finView.length > 0, req: request.trim() !== '',
   };
   const nChanged = Object.values(changed).filter(Boolean).length;
   const cls = (c: boolean) => `inp${c ? ' changed' : ''}`;
@@ -109,7 +116,16 @@ export default function ConditionPanel({
             <label key={v}><input type="radio" name="cond-reuse" value={v} checked={reuse === v} onChange={() => set.setReuse(v)} />{v}</label>
           ))}</div>
         </fieldset>
-        <button type="button" className="btn primary block run" onClick={onRun}>類似案件を検索して<wbr />叩き台を作る</button>
+        {/* 特記・要望(WO-023)。空なら外に送らず、今までどおり条件の近さだけで選ぶ */}
+        <label className="fld"><span className="lbl">特記・要望(任意) {changed.req ? <span className="chg">入力あり</span> : <span className="init">空欄でも可</span>}</span>
+          <textarea className={`inp ta${changed.req ? ' changed' : ''}`} rows={3} value={request} maxLength={REQUEST_MAX}
+            aria-invalid={reqErr ? true : undefined} aria-describedby={`req-help${reqErr ? ' req-err' : ''}`}
+            onChange={(e) => setRequest(e.target.value)} />
+          <span className="help on-ink-help" id="req-help">例: 前回と同じ色に合わせたい/社章の指定色で刷りたい。文の意味の近い過去案件を根拠に選びやすくします。入力した文は Voyage AI(外部の AI のサービス)へ送ります。お客様の名前など個人の情報は入れないでください({REQUEST_MAX}文字まで)。</span></label>
+        {reqErr && <p className="msg ng" id="req-err" role="alert" data-v="req-err"><span aria-hidden="true">!</span><span>エラー: {reqErr}</span></p>}
+        <button type="button" className="btn primary block run" onClick={onRun} disabled={running} aria-busy={running || undefined}>
+          {running ? <BusyLabel busy busyText="検索中…" text="" /> : <>類似案件を検索して<wbr />叩き台を作る</>}
+        </button>
       </div>
 
       {showMechanism && <Mechanism />}
