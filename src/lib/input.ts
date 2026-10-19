@@ -10,6 +10,10 @@ export const QTY_MAX = 1_000_000;
 export const NAME_MAX = 100;
 export const MEMO_MAX = 200; // メモ・手戻り事由
 export const REASON_MAX = 300; // 確定金額の補正理由
+// 「特記・要望」の自由文(WO-023)。意味検索のために外部(Voyage AI)へ送るので、サーバーで長さを確かめる。
+// 認証のない公開デモから誰でも送れるため、長い文の送りつけを防ぐ。記録の行の note(MEMO_MAX)にも入れるので同じ長さにそろえる
+export const REQUEST_MAX = MEMO_MAX;
+export const REQUEST_ERROR = `特記・要望は${REQUEST_MAX}文字以内で入力してください`;
 
 // 数字だけの文字列を整数にする。`12abc` `1e3` ` -5` `''` `1.5` は NaN(parseInt の緩さを避ける)
 export function strictInt(raw: string): number {

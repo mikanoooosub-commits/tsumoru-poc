@@ -2,11 +2,12 @@
 
 import { db } from '@/db';
 import { estimates, papers, typeEnum, sizeEnum, colorEnum, dataStateEnum, reuseEnum } from '@/db/schema';
-import { getEstimates } from '@/db/queries';
+import { getEstimates, getSimilarities } from '@/db/queries';
 import { revalidatePath } from 'next/cache';
 import { or, ilike, eq } from 'drizzle-orm';
-import { strictInt, escapeLike, parseQty, INT4_MAX, QTY_ERROR, NAME_MAX, MEMO_MAX, REASON_MAX } from '@/lib/input';
-import { FINS, rank, buildDraft, type Query } from '@/lib/scoring';
+import { strictInt, escapeLike, parseQty, INT4_MAX, QTY_ERROR, NAME_MAX, MEMO_MAX, REASON_MAX, REQUEST_MAX, REQUEST_ERROR } from '@/lib/input';
+import { FINS, rank, buildDraft, yen, type Query, type Similarities } from '@/lib/scoring';
+import { embedTexts, caseText, voyageKey, EMBED_MODEL } from '@/lib/embedding';
 
 export type FormState = { ok: boolean; message: string } | null;
 
@@ -89,10 +90,12 @@ export async function saveEstimate(_prev: FormState, formData: FormData): Promis
   const id = idRaw ? strictInt(idRaw) : null;
   if (id !== null && (!Number.isFinite(id) || id <= 0)) return { ok: false, message: 'IDが不正です' };
 
+  let rowId: number;
   try {
     if (id) {
       const updated = await db.update(estimates).set(values).where(eq(estimates.id, id)).returning({ id: estimates.id });
       if (updated.length === 0) return { ok: false, message: '更新できませんでした(対象が見つかりません。他の画面で削除された可能性があります)' };
+      rowId = id;
     } else {
       // 採番: insert 後の serial id から code=E-{id} を付与(シードの id N ↔ E-00N と同じ規則)
       const [row] = await db
@@ -100,14 +103,86 @@ export async function saveEstimate(_prev: FormState, formData: FormData): Promis
         .values({ ...values, status: 'confirmed', source: 'manual' })
         .returning({ id: estimates.id });
       await db.update(estimates).set({ code: `E-${String(row.id).padStart(3, '0')}` }).where(eq(estimates.id, row.id));
+      rowId = row.id;
     }
   } catch (e) {
     console.error('saveEstimate failed', e); // 詳細はサーバログへ。画面には固定文言のみ
     return { ok: false, message: (id ? '更新' : '登録') + 'に失敗しました。入力した内容は残っているので、もう一度押せます' };
   }
 
+  // 意味検索の埋め込みを付ける(WO-023)。失敗しても登録・更新は成功のまま(埋め込みは NULL。scripts/embed-backfill.ts で後から付く)
+  const embedded = await refreshEmbedding(rowId, values);
+
   revalidatePath('/'); // 一覧・母集団を最新化
-  return { ok: true, message: `「${values.name}」を${id ? '更新' : '登録'}しました(次回の類似検索から使えます)` };
+  const tail = embedded ? '' : '(意味検索の準備はあとで行います)';
+  return { ok: true, message: `「${values.name}」を${id ? '更新' : '登録'}しました(次回の類似検索から使えます)${tail}` };
+}
+
+// 案件の埋め込みを作り直す。先に NULL に戻してから付ける(編集で中身が変わったのに古い埋め込みで引かれないように)。
+// キーが無いときは NULL に戻すだけ(画面には何も足さない)。false=キーはあるのに付けられなかった
+async function refreshEmbedding(rowId: number, v: EstimateValues): Promise<boolean> {
+  try {
+    await db.update(estimates).set({ embedding: null, embeddingModel: null }).where(eq(estimates.id, rowId));
+    if (!voyageKey()) return true;
+    const r = await embedTexts([caseText(v)], 'document');
+    if (!r.ok) return false;
+    await db.update(estimates).set({ embedding: r.vectors[0], embeddingModel: EMBED_MODEL }).where(eq(estimates.id, rowId));
+    return true;
+  } catch (e) {
+    console.error('refreshEmbedding failed', e);
+    return false;
+  }
+}
+
+// ── 意味検索(WO-023・D88) ──
+// 「特記・要望」の自由文を Voyage AI で埋め込み、母集団の各案件との文の意味の近さ(id → コサイン類似度)を返す。
+// 失敗しても例外を投げない。画面は「条件の点だけ」で叩き台を出し、使えなかった理由を出す(止めない)
+export type SemanticResult =
+  | { ok: true; sims: Similarities }
+  | { ok: false; reason: 'invalid' | 'nokey' | 'notready' | 'failed'; message: string };
+
+// Postgres のエラーコード(Drizzle が包んだときは cause の中)。列が無い=42703・型や演算子が無い(pgvector 未導入)=42704・42883
+function pgCode(e: unknown): string | null {
+  let cur: unknown = e;
+  for (let i = 0; i < 3 && typeof cur === 'object' && cur !== null; i++) {
+    const m = new Map(Object.entries(cur));
+    const code = m.get('code');
+    if (typeof code === 'string') return code;
+    cur = cur instanceof Error ? cur.cause : m.get('cause');
+  }
+  return null;
+}
+
+const NOT_READY = '過去案件の意味検索の準備がまだのため';
+async function similaritiesFor(text: string): Promise<SemanticResult> {
+  if (!voyageKey()) return { ok: false, reason: 'nokey', message: '意味検索の設定がまだのため' };
+  const emb = await embedTexts([text], 'query');
+  if (!emb.ok) return { ok: false, reason: 'failed', message: '意味検索のサービス(Voyage AI)につながらなかったため' };
+  try {
+    const sims = await getSimilarities(emb.vectors[0]);
+    if (Object.keys(sims).length === 0) return { ok: false, reason: 'notready', message: NOT_READY };
+    return { ok: true, sims };
+  } catch (e) {
+    const code = pgCode(e);
+    if (code === '42703' || code === '42704' || code === '42883') return { ok: false, reason: 'notready', message: NOT_READY };
+    console.error('getSimilarities failed', e);
+    return { ok: false, reason: 'failed', message: '意味検索の計算に失敗したため' };
+  }
+}
+
+// 自由文の検証(サーバー側。文字列でなければ不正・前後の空白を除く・長さの上限 REQUEST_MAX)
+function parseRequestText(v: unknown): { ok: true; text: string } | { ok: false } {
+  if (v === undefined || v === null) return { ok: true, text: '' };
+  if (typeof v !== 'string') return { ok: false };
+  const text = v.trim();
+  return text.length <= REQUEST_MAX ? { ok: true, text } : { ok: false };
+}
+
+export async function semanticScores(input: unknown): Promise<SemanticResult> {
+  const p = parseRequestText(input);
+  if (!p.ok) return { ok: false, reason: 'invalid', message: REQUEST_ERROR };
+  if (!p.text) return { ok: true, sims: {} }; // 空なら外に送らない(画面は空のとき呼ばない作りだが、念のため)
+  return similaritiesFor(p.text);
 }
 
 // 過去見積の削除
@@ -152,10 +227,13 @@ export async function searchMemos(kw: string) {
 //   status='draft'(類似検索の母集団=reference/confirmed に入らない)/ source='tool'
 //   amount=確定金額 / draft_amount=叩き台(サーバーで再計算) / reason=補正理由
 //   cost=0 は「原価未入力」を表す。粗利計算には使わない(母集団に入らない行のため)。
+//   note=「特記・要望」の自由文(WO-023。後の意味検索・語句検索の材料。PM 判断 2)。埋め込みは付けない(母集団に入らない行のため)。
+//   叩き台は自由文も使い、画面と同じ手順(意味の近さ → rank → buildDraft)で再計算する(PM 判断 1)。
+//   shownDraft=画面に出ていた叩き台。サーバーの再計算と違えば(そのとき意味検索が使えなかった等)、保存はサーバーの値でメッセージに書く。
 export type RecordInput = {
   type: string; size: string; paper: string; color: string; qty: number;
   finishing: string[]; dataState: string; reuse: string;
-  amount: number; reason: string;
+  amount: number; reason: string; request: string; shownDraft: number;
 };
 
 export async function recordFinalAmount(input: unknown): Promise<FormState> {
@@ -180,6 +258,8 @@ export async function recordFinalAmount(input: unknown): Promise<FormState> {
   const qty = wholeNumber('qty');
   const amount = wholeNumber('amount');
   const reason = text('reason');
+  const req = parseRequestText(raw.get('request'));
+  const shownDraft = wholeNumber('shownDraft');
   const finRaw = raw.get('finishing');
   const finishing = Array.isArray(finRaw)
     ? finRaw.filter((v): v is string => typeof v === 'string' && FINS.includes(v))
@@ -193,7 +273,11 @@ export async function recordFinalAmount(input: unknown): Promise<FormState> {
   if (parseQty(String(qty)) === null) return { ok: false, message: QTY_ERROR };
   if (!(amount >= 1 && amount <= INT4_MAX)) return { ok: false, message: '確定金額は1円以上の整数で入力してください' };
   if (reason.length > REASON_MAX) return { ok: false, message: `補正理由は${REASON_MAX}文字以内で入力してください` };
+  if (!req.ok) return { ok: false, message: REQUEST_ERROR };
+  const request = req.text;
 
+  let draftAmount = 0;
+  let semFailed = false;
   try {
     // 用紙は辞書にあるものだけ(family もここで確定する)
     const paperRows = await db.select().from(papers).where(eq(papers.name, paper));
@@ -201,9 +285,12 @@ export async function recordFinalAmount(input: unknown): Promise<FormState> {
 
     // 叩き台はサーバーで再計算する(画面が送った叩き台は使わない=差分の根拠を改ざんさせない)
     const q: Query = { type, size, family: paperRows[0].family, color, qty, finishing, dataState, reuse };
-    const { basis } = rank(q, await getEstimates());
+    const sem = request ? await similaritiesFor(request) : null;
+    const { basis } = rank(q, await getEstimates(), sem?.ok ? sem.sims : null);
     const draft = buildDraft(basis, q);
     if (!draft) return { ok: false, message: '類似案件がなく叩き台が出せないため、記録できません' };
+    draftAmount = draft.amount;
+    semFailed = !!sem && !sem.ok;
 
     const [row] = await db
       .insert(estimates)
@@ -223,6 +310,7 @@ export async function recordFinalAmount(input: unknown): Promise<FormState> {
         cost: 0,
         draftAmount: draft.amount,
         reason: reason || null,
+        note: request || null,
       })
       .returning({ id: estimates.id });
     await db.update(estimates).set({ code: `E-${String(row.id).padStart(3, '0')}` }).where(eq(estimates.id, row.id));
@@ -232,5 +320,9 @@ export async function recordFinalAmount(input: unknown): Promise<FormState> {
   }
 
   revalidatePath('/');
+  if (Number.isFinite(shownDraft) && shownDraft !== draftAmount) {
+    const why = semFailed ? '記録の時点で意味検索が使えず、条件の近さだけで出し直したため' : '叩き台を出した後に、過去見積や文の意味の近さが変わったため';
+    return { ok: true, message: `確定金額を記録しました。ただし、保存した叩き台は画面と違う ${yen(draftAmount)} です(${why})` };
+  }
   return { ok: true, message: '確定金額を記録しました' };
 }
