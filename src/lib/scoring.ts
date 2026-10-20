@@ -116,9 +116,12 @@ export function rank(q: Query, rows: EstimateRow[], sims?: Similarities | null):
     const sim = sims && Object.hasOwn(sims, r.id) ? sims[r.id] : null;
     return { r, s: sc.s, why: sc.why, pct: Math.round((sc.s / MAXSCORE) * 100), m: meaningPoints(sim, base), sim, byText: false };
   });
-  // 条件の点だけの上位4件(「文で選ばれた」の見分けに使う)。sort は安定なので、同点の並びは元の順のまま
-  const byCondition = new Set([...scored].sort((a, b) => b.s - a.s).slice(0, 4).map((t) => t.r.id));
-  const ranked = [...scored].sort((a, b) => (b.s + b.m) - (a.s + a.m));
+  // 同点の決め方: 点が同じなら番号(id)の小さい順(WO-023 P-9)。以前は DB の返す順のままで、
+  // 行を更新すると(埋め込みの作り直しなど)同点の案件の並びが変わり、叩き台の金額が揺れることがあった
+  const byId = (a: Scored, b: Scored) => a.r.id - b.r.id;
+  // 条件の点だけの上位4件(「文で選ばれた」の見分けに使う)
+  const byCondition = new Set([...scored].sort((a, b) => b.s - a.s || byId(a, b)).slice(0, 4).map((t) => t.r.id));
+  const ranked = [...scored].sort((a, b) => (b.s + b.m) - (a.s + a.m) || byId(a, b));
   const top = ranked.slice(0, 4).map((t) => ({ ...t, byText: t.m > 0 && !byCondition.has(t.r.id) }));
   const strong = top.filter((t) => t.s >= 45 && t.r.type === q.type); // 種類一致を必須に
   const basis = strong.length ? strong : top.slice(0, 3);
