@@ -6,7 +6,7 @@
 import { useRef, useState, useTransition } from 'react';
 import {
   type EstimateRow, type Query,
-  rank, detect, buildDraft, unitOf, meaningPoints, type Similarities,
+  rank, detect, buildDraft, unitOf, meaningPoints, simBase, type Similarities,
   TYPES, SIZES, COLORS, FINS, DATA_STATES, REUSES,
 } from '@/lib/scoring';
 import { parseQty, QTY_ERROR, REQUEST_MAX, REQUEST_ERROR } from '@/lib/input';
@@ -117,7 +117,8 @@ export default function EstimateTool({ estimates, papers, records }: { estimates
         if (!r.ok && r.reason === 'invalid') { setReqErr(r.message); setRes(null); return; }
         if (r.ok) {
           sims = r.sims;
-          sem = { kind: 'ok', matched: Object.values(r.sims).filter((v) => meaningPoints(v) > 0).length };
+          const base = simBase(r.sims);
+          sem = { kind: 'ok', matched: Object.values(r.sims).filter((v) => meaningPoints(v, base) > 0).length, base };
         } else {
           sem = { kind: 'off', message: r.message };
         }

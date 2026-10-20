@@ -9,8 +9,8 @@ export type MemoRow = {
   reason: string | null; source: string; amount: number; draftAmount: number | null;
 };
 
-// 意味検索(WO-023)を使えたか。none=自由文が空 / ok=使えた(matched=意味の点が付いた過去案件の数) / off=使えなかった(理由の文)
-export type SemanticState = { kind: 'none' } | { kind: 'ok'; matched: number } | { kind: 'off'; message: string };
+// 意味検索(WO-023)を使えたか。none=自由文が空 / ok=使えた(matched=意味の点が付いた過去案件の数・base=その文の基準=全件の類似度の中央値) / off=使えなかった(理由の文)
+export type SemanticState = { kind: 'none' } | { kind: 'ok'; matched: number; base: number | null } | { kind: 'off'; message: string };
 
 // 叩き台を作った結果(EstimateTool の run() が作る)
 export type Result = {

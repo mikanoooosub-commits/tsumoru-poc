@@ -43,7 +43,7 @@ export default function BasisList({ basis, notesRows, total, sameType, bestId, o
         <span className="tog" aria-hidden="true">{open ? 'たたむ' : '開く'}</span>
       </summary>
       <div>
-        <div className="brow brow-hd" aria-hidden="true"><span className="nm">案件</span><span className="sim">{useSem ? '条件の近さ・文の意味' : '類似度'}</span><span className="up r">単価</span><span className="gm r">粗利・納期</span><span className="op" /></div>
+        <div className="brow brow-hd" aria-hidden="true"><span className="nm">案件</span><span className="sim">{useSem ? '条件・文の意味' : '類似度'}</span><span className="up r">単価</span><span className="gm r">粗利・納期</span><span className="op" /></div>
         <ul>
           {basis.map((t) => {
             const rowOpen = openRows.has(t.r.id);
@@ -63,7 +63,7 @@ export default function BasisList({ basis, notesRows, total, sameType, bestId, o
                   {rowOpen && (
                     <p className="chips">{t.why.map(([k, v], i) => (
                       <span key={i} className={`chip ${v === 1 ? 'ok' : 'why-ng'}`}>{v === 1 ? '✓' : v > 0 ? '△' : '×'} {k}</span>
-                    ))}{useSem && <span className="chip sem">文の意味 +{t.m}点/{MEANING_MAX}点{t.sim !== null ? `(近さ ${t.sim.toFixed(2)})` : '(埋め込みなし)'}</span>}</p>
+                    ))}{useSem && <span className="chip sem">文の意味 +{t.m}点/{MEANING_MAX}点{t.sim !== null ? `(近さ ${t.sim.toFixed(2)}${sem.kind === 'ok' && sem.base !== null ? `・この文の基準 ${sem.base.toFixed(2)}` : ''})` : '(埋め込みなし)'}</span>}</p>
                   )}
                 </div>
               </li>

@@ -62,19 +62,29 @@ export type Scored = { r: EstimateRow; s: number; pct: number; why: Why[]; m: nu
 // ── 意味検索(WO-023・D88)。根拠の「選び方」にだけ使う。叩き台の式・判定の条件は変えない ──
 // 並べる点 = 条件の点 s + 意味の点 m。上位4件をこの点で選び、その後の strong の判定(s≥45 かつ種類一致)は条件の点のまま。
 // MEANING_MAX は【仮】: 122点の約2割。種類一致の40点より小さく、加工の16点より大きい(条件が主・文が次、の順を保つ)。
-// SIM_LO・SIM_HI は【仮】: コサイン類似度をこの幅で 0〜1 に直す(LO 以下=0点・HI 以上=満点)。
-//   類似度の数字の幅はモデルによって違うため、WO-023 段3 で 38件と例の文で実測して決め直し、docs/SPEC.md に数字と測り方を書く。
-//   最大の1件に必ず点を配る相対の方式(最小〜最大で割る)は、関係のない文でも誰かに満点が付くので使わない。
-export const MEANING_MAX = 24;
-export const SIM_LO = 0.3;
-export const SIM_HI = 0.7;
-export function meaningPoints(sim: number | null): number {
-  if (sim === null || !Number.isFinite(sim)) return 0;
-  const t = Math.min(1, Math.max(0, (sim - SIM_LO) / (SIM_HI - SIM_LO)));
-  return Math.round(MEANING_MAX * t);
-}
+// 意味の点は「その文の基準からの上乗せ」で決める(WO-023 段3 の実測・docs/SPEC.md §5-2):
+//   基準 = その文と、埋め込みのある過去案件すべての類似度の中央値。上乗せ = 類似度 − 基準。
+//   上乗せ LIFT_LO 以下=0点、LIFT_HI 以上=満点、その間は比例。
+//   理由: voyage-4 の類似度は、文によって全体の高さが違う(実測で中央値 0.13〜0.37)。決まった幅(例 0.3〜0.7)だと、
+//   「よろしくお願いします」のような関係のない文でも点が付き(最大 0.345)、関係のある文の一番近い案件(0.39〜0.64)と分けにくい。
+//   上乗せで見ると、関係のない文4つは最大 0.059、関係のある文の一番近い案件は 0.135〜0.35(10文中8文。外れた2文は報告に記録)。
+//   最大の1件に必ず点を配る方式(最小〜最大で割る)は、関係のない文でも誰かに満点が付くので使わない(中央値からの上乗せなら付かない)。
+export const MEANING_MAX = 24;  // 【仮】
+export const LIFT_LO = 0.08;    // 関係のない文の上乗せの最大(0.059)より少し上
+export const LIFT_HI = 0.25;    // 関係のある文の一番近い案件の多く(0.24〜0.35)が満点近くになる高さ
 // 案件の id → 文の意味の近さ(コサイン類似度)。Server Action semanticScores が返す。埋め込みの無い案件は入らない
 export type Similarities = Record<number, number>;
+// その文の基準(全件の類似度の中央値)。件数が0なら null
+export function simBase(sims: Similarities | null | undefined): number | null {
+  if (!sims) return null;
+  const v = Object.values(sims).filter((x) => Number.isFinite(x));
+  return v.length ? median(v) : null;
+}
+export function meaningPoints(sim: number | null, base: number | null): number {
+  if (sim === null || base === null || !Number.isFinite(sim)) return 0;
+  const t = Math.min(1, Math.max(0, (sim - base - LIFT_LO) / (LIFT_HI - LIFT_LO)));
+  return Math.round(MEANING_MAX * t);
+}
 
 export function score(q: Query, r: EstimateRow): { s: number; why: Why[] } {
   let s = 0;
@@ -100,10 +110,11 @@ export function score(q: Query, r: EstimateRow): { s: number; why: Why[] } {
 
 // sims を渡さない(自由文が空・意味検索が使えない)ときは、意味の点はすべて0で、今までと同じ並び・同じ結果になる
 export function rank(q: Query, rows: EstimateRow[], sims?: Similarities | null): { top: Scored[]; basis: Scored[]; strong: Scored[] } {
+  const base = simBase(sims);
   const scored: Scored[] = rows.map((r) => {
     const sc = score(q, r);
     const sim = sims && Object.hasOwn(sims, r.id) ? sims[r.id] : null;
-    return { r, s: sc.s, why: sc.why, pct: Math.round((sc.s / MAXSCORE) * 100), m: meaningPoints(sim), sim, byText: false };
+    return { r, s: sc.s, why: sc.why, pct: Math.round((sc.s / MAXSCORE) * 100), m: meaningPoints(sim, base), sim, byText: false };
   });
   // 条件の点だけの上位4件(「文で選ばれた」の見分けに使う)。sort は安定なので、同点の並びは元の順のまま
   const byCondition = new Set([...scored].sort((a, b) => b.s - a.s).slice(0, 4).map((t) => t.r.id));
