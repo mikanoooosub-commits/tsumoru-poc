@@ -369,12 +369,26 @@ dialog.dlg-list { width: min(1040px, 92vw); overflow: hidden; }
 .dlg-foot { position: sticky; bottom: 0; background: var(--bg); border-top: 1px solid var(--line); box-shadow: var(--shadow-up); padding: 10px var(--sp-5); display: flex; gap: 10px; justify-content: flex-end; }
 .dlg-foot .btn.primary { min-width: 140px; }
 
+/* ── ログイン画面(WO-024)。既存の変数だけを使う ── */
+.logout { display: contents; }
+.login { flex: 1 1 auto; display: flex; justify-content: center; align-items: flex-start; padding: var(--sp-7) var(--sp-4); }
+.login-card { width: 100%; max-width: 400px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: var(--sp-6); display: flex; flex-direction: column; gap: var(--sp-4); }
+.login-title { font-size: var(--fs-lg); color: var(--text-strong); line-height: 1.4; }
+.login-form { display: flex; flex-direction: column; gap: var(--sp-4); }
+.login-admin { font-weight: 400; }
+.login-foot { font-size: var(--fs-sm); color: var(--muted); line-height: 1.6; border-top: 1px solid var(--line); padding-top: var(--sp-3); }
+.login-foot a { color: var(--ink); }
+
 /* 利用者が入れた文字(案件名・メモ・理由)は、切れ目の無い長い文字でも折り返す(F-11) */
 .msg, .judge li, .preview { overflow-wrap: anywhere; }
 
 /* ── スマホ(760px 以下) ── */
 @media (max-width: 760px) {
   .appbar { padding: 0 var(--sp-3); gap: 10px; flex-wrap: nowrap; }
+  .appbar-end { gap: var(--sp-2); }
+  .appbar-end .btn { padding: var(--sp-2) 10px; }
+  .login { padding: var(--sp-5) var(--sp-4); }
+  .login-card { padding: var(--sp-5); }
   .layout { grid-template-columns: 1fr; min-height: 0; }
   .side { padding: var(--sp-2) var(--sp-3) var(--sp-3); gap: var(--sp-3); }
   .side.is-collapsed .cond-form { display: none; }

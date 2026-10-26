@@ -8,6 +8,11 @@ import { or, ilike, eq } from 'drizzle-orm';
 import { strictInt, escapeLike, parseQty, INT4_MAX, QTY_ERROR, NAME_MAX, MEMO_MAX, REASON_MAX, REQUEST_MAX, REQUEST_ERROR } from '@/lib/input';
 import { FINS, rank, buildDraft, yen, type Query, type Similarities } from '@/lib/scoring';
 import { embedTexts, caseText, voyageKey, EMBED_MODEL } from '@/lib/embedding';
+import { requireAction, AUTH_EXPIRED } from '@/lib/auth';
+
+// ★ ここから export する関数は、外から直接呼べる入口になる(画面を通らずに POST できる)。
+//   export する関数は必ず先頭で requireAction() を確かめ、DB・Voyage に触る前に返すこと(WO-024・D92)。
+//   今は5つ: saveEstimate / semanticScores / deleteEstimate / searchMemos / recordFinalAmount
 
 export type FormState = { ok: boolean; message: string } | null;
 
@@ -81,6 +86,7 @@ function parseForm(formData: FormData): { ok: true; v: EstimateValues } | { ok: 
 
 // 過去見積の登録 or 更新(hidden の id があれば更新)。id 付き=更新は status/source を変えない。
 export async function saveEstimate(_prev: FormState, formData: FormData): Promise<FormState> {
+  if (!(await requireAction())) return { ok: false, message: AUTH_EXPIRED };
   const parsed = parseForm(formData);
   if (!parsed.ok) return { ok: false, message: parsed.message };
   const values = parsed.v;
@@ -179,6 +185,7 @@ function parseRequestText(v: unknown): { ok: true; text: string } | { ok: false 
 }
 
 export async function semanticScores(input: unknown): Promise<SemanticResult> {
+  if (!(await requireAction())) return { ok: false, reason: 'failed', message: 'ログインの有効期限が切れたため' };
   const p = parseRequestText(input);
   if (!p.ok) return { ok: false, reason: 'invalid', message: REQUEST_ERROR };
   if (!p.text) return { ok: true, sims: {} }; // 空なら外に送らない(画面は空のとき呼ばない作りだが、念のため)
@@ -187,6 +194,7 @@ export async function semanticScores(input: unknown): Promise<SemanticResult> {
 
 // 過去見積の削除
 export async function deleteEstimate(id: number): Promise<FormState> {
+  if (!(await requireAction())) return { ok: false, message: AUTH_EXPIRED };
   if (!Number.isInteger(id) || id <= 0) return { ok: false, message: 'IDが不正です' };
   try {
     const deleted = await db.delete(estimates).where(eq(estimates.id, id)).returning({ id: estimates.id });
@@ -200,7 +208,9 @@ export async function deleteEstimate(id: number): Promise<FormState> {
 }
 
 // メモ検索(DBの ILIKE。note / rework / reason を対象 = Phase1のLIKE検索)
-export async function searchMemos(kw: string) {
+export async function searchMemos(kw: unknown) {
+  if (!(await requireAction())) return []; // ログインが無ければ何も返さない(WO-024 まではログインなしでメモを返していた)
+  if (typeof kw !== 'string') return [];
   const q = kw.trim();
   if (!q) return [];
   const like = `%${escapeLike(q)}%`;
@@ -237,6 +247,7 @@ export type RecordInput = {
 };
 
 export async function recordFinalAmount(input: unknown): Promise<FormState> {
+  if (!(await requireAction())) return { ok: false, message: AUTH_EXPIRED };
   // クライアントから来た値は型も中身も信用せず、1つずつ確かめる(typeof で絞り込み、`as` に頼らない)
   if (typeof input !== 'object' || input === null) return { ok: false, message: '入力が不正です' };
   const raw = new Map(Object.entries(input));
