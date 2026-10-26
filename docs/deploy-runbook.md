@@ -12,7 +12,7 @@
 | ソース | GitHub `mikanoooosub-commits/tsumoru-poc`(ブランチ `master`) |
 | ホスティング | Vercel(GitHub 連携で `master` への push が自動デプロイ【推測・要確認: Production Branch の設定】) |
 | DB | Neon(サーバーレス Postgres)。接続は HTTP(`@neondatabase/serverless`) |
-| 環境変数 | `DATABASE_URL`(必須)、`TSUMORU_PASSWORD`・`TSUMORU_SESSION_SECRET`(ログイン・WO-024。**無いと誰も入れない**)、`VOYAGE_API_KEY`(意味検索・WO-023。無ければ意味検索なしで動く)。Vercel の Project Settings → Environment Variables / ローカルは `poc-next/.env.local` |
+| 環境変数 | `DATABASE_URL`(必須)、`TSUMORU_PASSWORD_HASH`・`TSUMORU_SESSION_SECRET`(ログイン・WO-024。**無いと誰も入れない**)、`VOYAGE_API_KEY`(意味検索・WO-023。無ければ意味検索なしで動く)。Vercel の Project Settings → Environment Variables / ローカルは `poc-next/.env.local` |
 | 外部 API | Voyage AI(埋め込み。`voyage-4`)。サーバーからだけ呼ぶ。「学習に使わせない」設定にする(代表) |
 | フレームワーク | Next.js 16.3.0 / React 19 / Drizzle ORM |
 | 公開日 | 2026-08-11(初回ビルド失敗 → 修正して成功。ISSUE-P-003) |
@@ -39,26 +39,33 @@
 
 | 名前 | 中身 | 覚える? |
 |---|---|---|
-| `TSUMORU_PASSWORD` | 合言葉。ログイン画面で入れる | 代表が覚える(パスワード管理アプリに保存) |
+| `TSUMORU_PASSWORD_HASH` | 合言葉の **scrypt のハッシュ**(1行)。合言葉そのものは入れない | 覚えなくてよい(覚えるのは合言葉。パスワード管理アプリに保存) |
 | `TSUMORU_SESSION_SECRET` | ログイン状態に付ける署名の鍵(乱数) | 覚えなくてよい |
 
-1. **合言葉を決める**。目安は **英数字ランダム16文字以上**、または**関係のない単語4〜5個をつないだもの**(例の形: `kumo-tansu-ringo-hashi-7`。この例そのものは使わない)。**12文字未満は受け付けない**(未設定と同じ扱いになり、誰も入れない)。ほかのサービスと同じものにしない。
+1. **合言葉を決める**(これだけを覚える)。目安は **英数字ランダム16文字以上**、または**関係のない単語4〜5個をつないだもの**(例の形: `kumo-tansu-ringo-hashi-7`。この例そのものは使わない)。**12文字未満は受け付けない**(未設定と同じ扱いになり、誰も入れない)。ほかのサービスと同じものにしない。
    - 理由: 間違いの抑え(15分で5回)はサーバーのメモリだけで、決め打ちの攻撃は止めきれない。長い合言葉なら、試せる回数が多くても当たらない。
-2. **鍵を作る**。`poc-next` のフォルダで次の1行を実行し、出てきた文字列(43文字)を使う:
+2. **合言葉のハッシュを作る**。`poc-next` のフォルダで次を実行し、聞かれたら合言葉を2回入れる(打った字は画面に出ない)。最後に出る `scrypt:32768:8:3:…` の**1行だけ**を使う:
+   ```bash
+   npx tsx scripts/hash-password.ts
+   ```
+   - **PowerShell か Windows Terminal(コマンドプロンプト)で実行する**。Git Bash の一部の画面では打った字を隠せないので、スクリプトが「隠して入れられません」と断る。
+   - 12文字未満・1回目と2回目が違うときは断る(やり直す)。同じ合言葉でも、作るたびに違う1行になる(ソルトが乱数のため)。どれを使ってもよい。
+   - 合言葉はファイルにもログにも残らない。チャットにも貼らない。
+3. **鍵を作る**。`poc-next` のフォルダで次の1行を実行し、出てきた文字列(43文字)を使う:
    ```bash
    node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
    ```
-3. **ローカル**: `poc-next/.env.local` に2行を足す(クォート無し)。
+4. **ローカル**: `poc-next/.env.local` に2行を足す(クォート無し。前に `TSUMORU_PASSWORD=` の行を入れていたら消す=もう使わない)。
    ```
-   TSUMORU_PASSWORD=<決めた合言葉>
+   TSUMORU_PASSWORD_HASH=<作ったハッシュの1行>
    TSUMORU_SESSION_SECRET=<作った鍵>
    ```
-4. **Vercel**: Project → Settings → Environment Variables で、2つを **Production** に追加する(名前に `NEXT_PUBLIC_` を付けない・クォート無し)。Preview・Development には入れなくてよい(入れなければ、プレビュー用のデプロイは誰も入れない=安全側)。
+5. **Vercel**: Project → Settings → Environment Variables で、`TSUMORU_PASSWORD_HASH` と `TSUMORU_SESSION_SECRET` の2つを **Production** に追加する(名前に `NEXT_PUBLIC_` を付けない・クォート無し)。Preview・Development には入れなくてよい(入れなければ、プレビュー用のデプロイは誰も入れない=安全側)。
    - 鍵はローカルと同じものでも別のものでもよい(別にすると、ローカルで付けた cookie は本番で使えない。困ることはない)。
-5. **入れた後に Redeploy**(既存のデプロイには効かない)。**ログインのコードを push する前に入れておく**と、その push のデプロイから効く。入れずに push すると、本番は「合言葉がまだ設定されていないため、いまは入れません。」の画面になる(データは守られるが、デモできない)。
-6. 本番で確かめる: ①ログインせずに開く → ログイン画面 ②合言葉を入れる → 見積の画面 ③右上の「ログアウト」→ ログイン画面。
+6. **入れた後に Redeploy**(既存のデプロイには効かない)。**ログインのコードを push する前に入れておく**と、その push のデプロイから効く。入れずに push すると、本番は「合言葉がまだ設定されていないため、いまは入れません。」の画面になる(データは守られるが、デモできない)。
+7. 本番で確かめる: ①ログインせずに開く → ログイン画面 ②合言葉を入れる → 見積の画面 ③右上の「ログアウト」→ ログイン画面。
 
-**入れ替えるとき**(漏れた・人に教えた後など): 合言葉と鍵の**両方**を新しくして、`.env.local` と Vercel を更新 → Redeploy。鍵を変えると、いまログインしている全員がログアウトになる(盗まれた cookie も使えなくなる)。
+**入れ替えるとき**(漏れた・人に教えた後など): 合言葉と鍵の**両方**を新しくして(合言葉を変えたらハッシュも作り直す)、`.env.local` と Vercel を更新 → Redeploy。鍵を変えると、いまログインしている全員がログアウトになる(盗まれた cookie も使えなくなる)。
 
 **間違いを続けてロックされたとき**: 15分待つ。急ぐときは Redeploy でも解ける(回数はサーバーのメモリだけにあるため)。
 
@@ -116,7 +123,7 @@ git push origin master
 - スキーマ変更を戻す場合は、変更時に用意した戻しSQLを使う(§4)。
 
 ### 5-4. 環境変数の誤りで落ちた場合
-`DATABASE_URL` の修正(§2)→ Redeploy。ログイン画面に「合言葉がまだ設定されていない」と出る場合は `TSUMORU_PASSWORD`(12文字以上)と `TSUMORU_SESSION_SECRET`(32文字以上)を確かめる(§2-3)→ Redeploy。直前の Production への Promote でも復旧できる(環境変数は Deployment に紐づく【推測・要確認】)。
+`DATABASE_URL` の修正(§2)→ Redeploy。ログイン画面に「合言葉がまだ設定されていない」と出る場合は `TSUMORU_PASSWORD_HASH`(`scrypt:` で始まる1行が丸ごと入っているか・`$` に変わっていないか)と `TSUMORU_SESSION_SECRET`(32文字以上)を確かめる(§2-3)→ Redeploy。直前の Production への Promote でも復旧できる(環境変数は Deployment に紐づく【推測・要確認】)。
 
 ## 6. ローカルの立ち上げ
 
@@ -124,7 +131,7 @@ git push origin master
 cd poc-next
 npm install
 # .env.local を作り DATABASE_URL を設定(値は Neon の管理画面から。コミットしない)
-# ログインの TSUMORU_PASSWORD・TSUMORU_SESSION_SECRET も(§2-3。無いとローカルでも入れない)
+# ログインの TSUMORU_PASSWORD_HASH・TSUMORU_SESSION_SECRET も(§2-3。無いとローカルでも入れない)
 npm run dev              # http://localhost:3000
 ```
 - `.env.local` は `.gitignore` 済み。**値をコミット・チャット・ドキュメントに出さない。**
@@ -138,4 +145,4 @@ npm run dev              # http://localhost:3000
 - [ ] ビルドが通る(`npm run build`。dev 停止中に)
 - [ ] 本番URLで叩き台が出る・全件数が正しい
 - [ ] 秘密情報がコミットに含まれていない(`.env*`・接続文字列・合言葉・鍵)。リポジトリを公開する前は**履歴全体**を検索する(`git grep -E '<型>' $(git rev-list --all)`。型の一覧は WO-024 の報告)
-- [ ] Vercel の Production に `TSUMORU_PASSWORD`・`TSUMORU_SESSION_SECRET` が入っている(§2-3)。ログインせずに開くとログイン画面になる
+- [ ] Vercel の Production に `TSUMORU_PASSWORD_HASH`・`TSUMORU_SESSION_SECRET` が入っている(§2-3)。ログインせずに開くとログイン画面になる

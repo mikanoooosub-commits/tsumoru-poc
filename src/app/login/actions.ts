@@ -35,7 +35,7 @@ export async function login(_prev: LoginState, formData: FormData): Promise<Logi
 
   const raw = formData.get('password');
   const input = typeof raw === 'string' ? raw : ''; // 前後の空白は除かない(合言葉の一部として扱う)
-  if (!passwordMatches(input, cfg.password)) {
+  if (!(await passwordMatches(input, cfg.passwordHash))) {
     const locked = recordFailure(ip);
     await wait(FAIL_DELAY_MS); // 失敗のたびに約1秒待つ(1本の接続で試せる回数を落とす)
     return { message: locked ? MSG_LOCKED : MSG_WRONG };

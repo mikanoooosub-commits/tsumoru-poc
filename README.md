@@ -32,7 +32,7 @@ npm install
 ```
 DATABASE_URL=postgresql://<user>:<password>@<host>/<db>?sslmode=require
 VOYAGE_API_KEY=<Voyage AI のキー>   # 任意。意味検索を使うときだけ(無ければ条件の近さだけで動く)
-TSUMORU_PASSWORD=<合言葉(12文字以上)>          # ログイン(必須。無いと誰も入れない)
+TSUMORU_PASSWORD_HASH=<合言葉の scrypt ハッシュの1行>  # ログイン(必須。npx tsx scripts/hash-password.ts で作る)
 TSUMORU_SESSION_SECRET=<署名の鍵(32バイトの乱数)>  # 作り方は docs/deploy-runbook.md §2-3
 ```
 
@@ -63,7 +63,7 @@ http://localhost:3000 を開く。
 ## デプロイ（Vercel）
 
 1. このリポジトリを Vercel で import
-2. 環境変数 `DATABASE_URL` に Neon の接続文字列を設定（サーバ限定。クライアントに露出させない）。ログインの `TSUMORU_PASSWORD`・`TSUMORU_SESSION_SECRET` も（必須）。意味検索を使うなら `VOYAGE_API_KEY` も（どれも `NEXT_PUBLIC_` を付けない）
+2. 環境変数 `DATABASE_URL` に Neon の接続文字列を設定（サーバ限定。クライアントに露出させない）。ログインの `TSUMORU_PASSWORD_HASH`・`TSUMORU_SESSION_SECRET` も（必須）。意味検索を使うなら `VOYAGE_API_KEY` も（どれも `NEXT_PUBLIC_` を付けない）
 3. `git push` で自動デプロイ
 
 ## 注意

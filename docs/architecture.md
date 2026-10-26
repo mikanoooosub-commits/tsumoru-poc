@@ -55,7 +55,7 @@ flowchart LR
 | 登録・更新 | フォーム → `onSaveSubmit` → `saveEstimate(null, FormData)`(Server Action) → `parseForm` で検証 → insert/update → `revalidatePath('/')` | hidden `id` の有無で分岐。成功後もダイアログは閉じない(B1) |
 | 削除 | 一覧のインライン確認「はい」→ `deleteEstimate(id)` → `revalidatePath('/')` | 物理削除 |
 | 意味検索 | `semanticScores(text)` → 文字列・200文字までを検証 → キーが無ければ使えない旨を返す → Voyage で自由文を埋め込む(`input_type: query`)→ `getSimilarities(vec)`(pgvector の `<=>`)→ `{id: 類似度}` だけを返す(埋め込みの数はブラウザに渡さない) | 失敗しても例外にせず `{ok:false, reason, message}`。画面は条件の点だけで出し、1行で知らせる |
-| ログイン | `/login` の `login(prev, formData)`(Server Action)→ 設定が無ければ断る → IP がロック中なら約1秒待って断る → 合言葉を SHA-256+`timingSafeEqual` で比べる → 違えば回数を数えて約1秒待つ → 合えば `tsumoru_session` cookie を付けて `/` へ | `logout()` は cookie を消して `/login` へ(上の帯の右端のボタン) |
+| ログイン | `/login` の `login(prev, formData)`(Server Action)→ 設定が無ければ断る → IP がロック中なら約1秒待って断る → 入力を `TSUMORU_PASSWORD_HASH` のソルトとパラメータで scrypt にかけ、`timingSafeEqual` で比べる(約170ms)→ 違えば回数を数えて約1秒待つ → 合えば `tsumoru_session` cookie を付けて `/` へ | `logout()` は cookie を消して `/login` へ(上の帯の右端のボタン) |
 | 語句検索 | `searchMemos(kw)` → `note`/`rework`/`reason` を ILIKE、先頭20件 | `/` の常時表示の帯(WO-009 で折りたたみを廃止) |
 | 確定金額の記録 | 「記録」→ `recordFinalAmount(input)`(Server Action) → 入力を1つずつ検証 → **叩き台をサーバーで再計算**(特記があれば同じ手順で意味の近さも測る。WO-023)→ `estimates` に新しい行を insert(`status='draft'`・`source='tool'`・`cost=0`=原価未入力)→ `code` 付与 → `revalidatePath('/')` | 母集団(reference/confirmed)・一覧には入らない。再読み込み後は `getToolRecords()` の直近10件を記録欄に表示。誤記録は記録欄の「削除」(確認つき)で消せる → [ISSUE-P-005](issue-log.md)(対応済) |
 
@@ -135,7 +135,7 @@ ENUM(7種): `estimate_status`(reference/draft/confirmed/issued) / `estimate_sour
 |---|---|
 | フレームワーク | Next.js 16.3.0(App Router・Turbopack)/ React 19.2 |
 | DB接続 | `@neondatabase/serverless`(HTTP)+ `drizzle-orm/neon-http` |
-| 環境変数 | `DATABASE_URL` と `VOYAGE_API_KEY`(WO-023。無くても動く=意味検索なし)、`TSUMORU_PASSWORD`・`TSUMORU_SESSION_SECRET`(WO-024。無いと誰も入れない)。ローカル `.env.local` / Vercel の環境変数。値は本書に書かない |
+| 環境変数 | `DATABASE_URL` と `VOYAGE_API_KEY`(WO-023。無くても動く=意味検索なし)、`TSUMORU_PASSWORD_HASH`・`TSUMORU_SESSION_SECRET`(WO-024。無いと誰も入れない)。ローカル `.env.local` / Vercel の環境変数。値は本書に書かない |
 | ビルド/起動 | `npm run dev` / `build` / `start`、DB: `db:generate` `db:migrate` `db:push` `db:seed` |
 | 本番 | Vercel。詳細は [deploy-runbook.md](deploy-runbook.md) |
 | **ローカルと本番のDB** | **同じ Neon DB を共有している**(ローカルで書込み操作をすると本番データが変わる) |
@@ -169,8 +169,13 @@ flowchart LR
 - **2段にしている理由**: Server Action は使われているページへの POST として届く。proxy の matcher から外れたり、置き場所が変わったりすると proxy を通らない(Next.js 16 の `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md` の Server Functions の注記・`02-guides/authentication.md`)。そのため、ページとすべての Server Action でもう一度確かめる。proxy を外したビルドで、5つを直接呼んでも DB・Voyage に届かないことを確かめた(test-scenarios「WO-024」)。
 - **cookie の中身**: `v1.<期限のミリ秒>.<乱数16バイト>.<署名>`。署名は `TSUMORU_SESSION_SECRET` による HMAC-SHA256。合言葉そのもの・個人の情報は入れない。期限切れ・ありえない先の期限(7日+1分より先)・形の違うものは通さない。
 - **鍵を合言葉と分ける理由**: 合言葉から鍵を作ると、cookie を1つ盗まれたときに合言葉を手元で総当たりされうる。別の乱数の鍵(32バイト)なら総当たりできない。
-- **合言葉の比べ方**: 入力と正解を SHA-256 で32バイトにそろえてから `crypto.timingSafeEqual`(`===` だと一致した長さが時間から漏れうる)。入力は200文字まで(超えたら比べずに「違います」)。前後の空白は除かない。
-- **未設定のとき**: 合言葉が12文字未満、または鍵が32文字未満なら、cookie の確かめは常に失敗し、`login` は比べずに断る=誰も入れない。環境変数を Vercel の Production にだけ入れれば、プレビュー用のデプロイは自動で「誰も入れない」になる。
+- **合言葉はハッシュで置く**(代表の希望・2026-10-26): 環境変数 `TSUMORU_PASSWORD_HASH` に `scrypt:<N>:<r>:<p>:<ソルト>:<ハッシュ>`(base64url)の1行。Node 標準の `crypto.scrypt`(依存なし)。`src/lib/password-hash.ts`。
+  - **強さ N=2^15・r=8・p=3(メモリ 32 MiB)・ソルト16バイト・ハッシュ32バイト**。OWASP Password Storage Cheat Sheet が scrypt の最低ラインとして挙げる設定の1つ(同じ表の N=2^17・p=1 などと「同じ程度の守り」とされる。2026-10-26 確認)。手元の PC で1回 約170〜190ms(N=2^17・p=1 は約280ms・128 MiB、N=2^16・p=2 は約240ms・64 MiB)。Vercel の関数で 100〜300ms に収まり、メモリにも余裕がある方を選んだ。Vercel の上での時間は【要確認】。
+  - 読み込める範囲は N=2^14〜2^17(2の累乗)・r=8〜16・p=1〜8・ソルト16バイト以上・ハッシュ32バイト。外れたら未設定と同じ扱い(大きすぎる値でサーバーが重くなるのも防ぐ)。
+  - 区切りに `$` を使わないのは、Next.js が `.env.local` を読むときに `$…` を変数として展開するため(`@next/env` の dotenv-expand。`scrypt$32768$…` は `scrypt2768` に化けることを確かめた)。
+- **合言葉の比べ方**: 入力を保存されたソルトとパラメータで scrypt にかけ、32バイトどうしを `crypto.timingSafeEqual` で比べる(`===` だと一致した長さが時間から漏れうる)。入力は200文字まで(超えたら比べずに「違います」)。前後の空白は除かない。
+- **ハッシュを作るスクリプト** `scripts/hash-password.ts`: 合言葉を打った字を表示せずに読み(キー入力を1字ずつ受け取る。受け取れない画面では断る)、確かめのため2回入れさせ、12文字未満は断り、stdout にハッシュの1行だけを出す。合言葉は引数・環境変数・ファイルでは受け取らない(シェルの履歴に残さない)。12文字の下限はここで確かめる(サーバーは合言葉の長さを知らない)。
+- **未設定のとき**: 合言葉のハッシュが無い・形が壊れている、または鍵が32文字未満なら、cookie の確かめは常に失敗し、`login` は比べずに断る=誰も入れない。環境変数を Vercel の Production にだけ入れれば、プレビュー用のデプロイは自動で「誰も入れない」になる。
 - **間違いの抑えの限界**: 回数はサーバーのメモリだけ。サーバーごと・止まると消える・IP を変える相手には効かない。共有の記録(DB の表や Redis)は、この WO の前提(表を足さない・外のサービスなし)の外。Vercel の Firewall のレート制限は管理画面で設定できる可能性がある【プランで使えるか要確認・未設定】。
 - **Next.js の注記**: Server Action を、それを使っていないページ(例 `/login`)へ POST すると、Next.js は内部でそのアクションを持つページ(`/`)へ転送する(`next/dist/server/app-render/action-handler.js` の `createForwardedActionResponse`)。転送も HTTP の要求なので proxy を通る(確かめ: proxy ありで `/login` に送ると `{}` が返り、DB に届かない)。
 

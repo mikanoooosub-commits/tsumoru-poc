@@ -24,7 +24,7 @@
 - WO-009(2026-10-13): 画面を印刷版デザインシステムに整備(DESIGN-SYSTEM.md・design-audit.md)。記録・メモ検索を常時表示に。機能・計算・DBは変更なし。
 - **WO-022(2026-10-19)**: 画面を全面的に作り直した(Claude Design の決定案 D 直し3・D86)。紺の帯+紺の条件パネル+右に叩き台と根拠、判定の帯を金額のすぐ下、根拠はたためる行の一覧、スマホの下の記録バー、一覧ダイアログを中央に、書体 Zen Kaku Gothic New。画面の部品を `src/components/estimate/` に分けた。**計算(`scoring.ts`)・Server Action・DB は変えていない**(12通りの条件で表示の値が前後一致、書き込み試験は D45 の手順で控えと全行一致)。記録: change-log CHANGE-P-020・test-scenarios「WO-022 のやり直し」・スクショ `screenshots/wo022/`・控え `backup/2026-10-18-before-WO022.json`。
 - **WO-023(2026-10-20・段1)**: 意味検索を追加。条件パネルに「特記・要望(任意)」、文があれば Voyage AI(`voyage-4`)の埋め込みで過去案件との意味の近さを測り、根拠の4件の選び方に「意味の点(最大24点・仮。その文の基準=全件の中央値からの上乗せで決める)」を足す。叩き台の式・判定の条件は不変、特記が空なら今までと同じ結果(12通りで一致)。キーが無い・失敗したときは条件の点だけで出して1行で知らせる。スキーマに `embedding vector(1024)`・`embedding_model` を NULL 許容で追加(`drizzle/0001_semantic_search.sql`・戻しは `drizzle/rollback/`)。既存の行の埋め込みは `scripts/embed-backfill.ts`(既定は予行)。記録: SPEC §5-2・change-log CHANGE-P-021・test-scenarios「WO-023 意味検索」・スクショ `screenshots/wo023/`。
-- **WO-024(2026-10-26)**: 合言葉ひとつのログインを付けた(D92・GitHub 公開の前提)。全体がログイン制。守りは2段(入口の `src/proxy.ts`+ページと Server Action 5つの先頭の `requireAction()`)。合言葉 `TSUMORU_PASSWORD` と署名の鍵 `TSUMORU_SESSION_SECRET`(どちらもサーバーの環境変数)・cookie は署名つき httpOnly・Secure・7日・間違いは15分で5回まで+毎回約1秒待ち。未設定なら誰も入れない。計算・判定・意味検索・DB は不変(12通り・特記ありの例 A〜J が前と一致・D45 の書き込み試験で控えと全行一致)。記録: SPEC §4-2・architecture §8・deploy-runbook §2-3(登録の手順)・change-log CHANGE-P-023・test-scenarios「WO-024」・スクショ `screenshots/wo024/`・控え `backup/2026-10-26-before-WO024.json`。
+- **WO-024(2026-10-26)**: 合言葉ひとつのログインを付けた(D92・GitHub 公開の前提)。全体がログイン制。守りは2段(入口の `src/proxy.ts`+ページと Server Action 5つの先頭の `requireAction()`)。合言葉の scrypt のハッシュ `TSUMORU_PASSWORD_HASH`(`scripts/hash-password.ts` で作る。合言葉そのものは置かない)と署名の鍵 `TSUMORU_SESSION_SECRET`(どちらもサーバーの環境変数)・cookie は署名つき httpOnly・Secure・7日・間違いは15分で5回まで+毎回約1秒待ち。未設定なら誰も入れない。計算・判定・意味検索・DB は不変(12通り・特記ありの例 A〜J が前と一致・D45 の書き込み試験で控えと全行一致)。記録: SPEC §4-2・architecture §8・deploy-runbook §2-3(登録の手順)・change-log CHANGE-P-023・test-scenarios「WO-024」・スクショ `screenshots/wo024/`・控え `backup/2026-10-26-before-WO024.json`。
 - WO-003(2026-10-13): 確定金額をDBに保存(P-005。スキーマ変更なし。新しい行を `status='draft'`・`source='tool'`・`cost=0`=原価未入力で insert)。書込み系の画面確認(T-08b・T-13〜T-16・T-20)を実施。P-003 再発防止・P-007/008/009/011 を修正、spec.html 修正。DBの控えと突き合わせツール `scripts/db-snapshot.ts` を追加。
 
 ## 4. やらなかったこと(意図的)
@@ -52,7 +52,7 @@ cd poc-next
 npm install
 # .env.local に DATABASE_URL を設定(値は Neon の管理画面。コミットしない・チャットに貼らない)
 # 意味検索を使うなら VOYAGE_API_KEY も(Voyage AI の管理画面。無くても動く=意味検索なしで条件の点だけ)
-# ログインの TSUMORU_PASSWORD・TSUMORU_SESSION_SECRET も(deploy-runbook §2-3。無いとローカルでも入れない)
+# ログインの TSUMORU_PASSWORD_HASH・TSUMORU_SESSION_SECRET も(deploy-runbook §2-3。無いとローカルでも入れない)
 npm run dev            # http://localhost:3000(next dev は AGENTS.md の注記を書き戻すことがある。確認は npm run build → npx next start を勧める)
 ```
 - 動作確認の手順は test-scenarios.md を参照。**書込み操作は本番DBに効く**(DB共有)。試験では代表の本当の合言葉を使わず、その場で作った試験用の値を `next start` の起動時の環境変数で渡す(Next.js はすでにある環境変数を `.env.local` で上書きしない。WO-024)。書込み試験は D45 の方針(試験行に `WO003テスト`・`WO022テスト` などの目印を入れる→画面から削除→`npx tsx scripts/db-snapshot.ts diff docs/backup/…json` で控えと突き合わせ)で行う。**`npm run db:seed` は全表を消すので実行しない**。

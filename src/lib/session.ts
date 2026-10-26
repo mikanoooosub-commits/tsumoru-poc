@@ -1,17 +1,18 @@
 import 'server-only';
-import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { parsePasswordHash, verifyPassword, type ParsedHash } from './password-hash';
 
 // ログイン(合言葉ひとつ・WO-024・D92)の中心。画面・DB には触らない、計算だけの部品。
 // proxy(src/proxy.ts)・ページ・Server Action(src/lib/auth.ts 経由)から使う。
 //
-// ・合言葉 TSUMORU_PASSWORD と署名の鍵 TSUMORU_SESSION_SECRET はサーバーの環境変数だけに置く(NEXT_PUBLIC_ を付けない=ブラウザに出ない)。
+// ・合言葉のハッシュ TSUMORU_PASSWORD_HASH(scrypt・src/lib/password-hash.ts)と署名の鍵 TSUMORU_SESSION_SECRET は、
+//   サーバーの環境変数だけに置く(NEXT_PUBLIC_ を付けない=ブラウザに出ない)。合言葉そのものはどこにも置かない(代表の希望)。
 //   鍵を合言葉と分けるのは、cookie を1つ盗まれても、そこから合言葉を手元で総当たりできないようにするため(WO-024 段0 1-2)。
-// ・どちらかが未設定・短すぎるときは「誰も入れない」に倒す(開いてしまわない)。
+// ・どちらかが未設定・形が壊れている・鍵が短すぎるときは「誰も入れない」に倒す(開いてしまわない)。
 // ・ログの中に合言葉・鍵・cookie の値は出さない。
 
 export const SESSION_COOKIE = 'tsumoru_session';
 export const SESSION_MAX_AGE_SEC = 7 * 24 * 60 * 60; // 有効期限7日(WO-024 Q2)。開くたびの延長はしない
-export const PASSWORD_MIN = 12; // これより短い合言葉は未設定と同じ扱い(WO-024 Q3)
 export const PASSWORD_INPUT_MAX = 200; // 入力の上限。超えたら比べずに「違います」(大きな入力で重くしない)
 const SECRET_MIN = 32; // 鍵の長さの下限(32バイトの乱数を base64url にすると43文字)
 
@@ -20,24 +21,23 @@ function envValue(name: string): string {
   return process.env[name]?.trim().replace(/^["']|["']$/g, '') ?? '';
 }
 
-export type AuthConfig = { ok: true; password: string; secret: string } | { ok: false };
+export type AuthConfig = { ok: true; passwordHash: ParsedHash; secret: string } | { ok: false };
 
 // 設定がそろっているか。そろっていなければ ok: false(=誰も入れない)
 export function authConfig(): AuthConfig {
-  const password = envValue('TSUMORU_PASSWORD');
+  const passwordHash = parsePasswordHash(envValue('TSUMORU_PASSWORD_HASH'));
   const secret = envValue('TSUMORU_SESSION_SECRET');
-  if (password.length < PASSWORD_MIN || secret.length < SECRET_MIN) return { ok: false };
-  return { ok: true, password, secret };
+  if (!passwordHash || secret.length < SECRET_MIN) return { ok: false };
+  return { ok: true, passwordHash, secret };
 }
 
-const sha256 = (s: string) => createHash('sha256').update(s, 'utf8').digest();
 const sign = (secret: string, body: string) => createHmac('sha256', secret).update(body, 'utf8').digest();
 
-// 合言葉の照合。両方を SHA-256 で32バイトにそろえてから timingSafeEqual で比べる
-// (=== は最初に違った文字で止まるので、時間から一致した長さが漏れうる。長さもハッシュでそろえて漏らさない)
-export function passwordMatches(input: string, password: string): boolean {
+// 合言葉の照合。入力を保存されたソルトとパラメータで scrypt にかけ、timingSafeEqual で比べる
+// (=== は最初に違った文字で止まるので、時間から一致した長さが漏れうる。ハッシュは常に同じ長さ)
+export async function passwordMatches(input: string, passwordHash: ParsedHash): Promise<boolean> {
   if (input.length === 0 || input.length > PASSWORD_INPUT_MAX) return false;
-  return timingSafeEqual(sha256(input), sha256(password));
+  return verifyPassword(input, passwordHash);
 }
 
 // ログイン状態の札(cookie の値)を作る。中身は「版.期限(ミリ秒).乱数」に HMAC-SHA256 の署名を付けたもの。
