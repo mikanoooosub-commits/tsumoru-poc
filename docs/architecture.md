@@ -1,6 +1,6 @@
 # システム構成図(つもる ― 見積アシスト PoC / as-built)
 
-作成: 2026-10-12(WO-002) / 最終更新: 2026-10-20(WO-023 意味検索) / 対象: `poc-next/`(ブランチ `master`)
+作成: 2026-10-12(WO-002) / 最終更新: 2026-10-26(WO-024 ログイン) / 対象: `poc-next/`(ブランチ `master`)
 関連: [SPEC.md](SPEC.md)(設計・判断の経緯) / [change-log.md](change-log.md) / [issue-log.md](issue-log.md) / [deploy-runbook.md](deploy-runbook.md)
 
 > **読み方**: 本書は `src/` を読んで書いた「実際にそうなっているもの」。コードで確認できず推測した箇所は **【推測】**、動作は画面で確認したものだけ [test-scenarios.md](test-scenarios.md) に ✅ を付けている。
@@ -10,11 +10,13 @@
 
 ```mermaid
 flowchart LR
-  subgraph Browser["ブラウザ(PC。認証なし・公開デモ)"]
+  subgraph Browser["ブラウザ(PC・スマホ。合言葉でログイン)"]
     Client["EstimateTool.tsx\n(Client Component)\n条件入力・類似検索・叩き台の計算\n(lib/scoring.ts をブラウザで実行)"]
   end
 
   subgraph Vercel["Vercel(ホスティング)"]
+    Proxy["proxy.ts\n(入口: cookie の署名と期限を見る)\n/login 以外は未ログインなら転送・401"]
+    Login["app/login/\n(ログイン画面・login / logout)"]
     Page["app/page.tsx\n(Server Component・force-dynamic)"]
     Actions["app/actions.ts\n(Server Actions)\nsaveEstimate / deleteEstimate / searchMemos\nsemanticScores / recordFinalAmount"]
   end
@@ -27,6 +29,9 @@ flowchart LR
     VA["voyage-4\n文 → 1024次元のベクトル"]
   end
 
+  Client -->|"⓪ すべての要求"| Proxy
+  Proxy -->|"ログイン済み"| Page
+  Proxy -.->|"未ログイン"| Login
   Client -->|"① 初回表示 (SSR)"| Page
   Page -->|"② getEstimates / getPapers\n(Drizzle・neon-http)"| DB
   Client -->|"③ 登録・更新・削除・語句検索\n(Server Action 呼び出し)"| Actions
@@ -35,7 +40,8 @@ flowchart LR
   Actions -->|"⑥ 特記の文・案件の文だけ\n(VOYAGE_API_KEY・サーバーから)"| VA
 ```
 
-- 認証は**無い**。外部 API は **Voyage AI の埋め込み**だけ(2026-10 WO-023)。サーバー(Server Action・`scripts/embed-backfill.ts`)からだけ呼び、キー `VOYAGE_API_KEY` はブラウザに出さない(`NEXT_PUBLIC_` を付けない。ビルドの `.next/static` にキーの名前も呼び先も含まれないことを確認)。
+- **ログインは合言葉ひとつ**(2026-10-26 WO-024・D92)。守りは2段: 入口の `src/proxy.ts`(cookie の署名と期限だけを見る。DB は見ない)と、`page.tsx`・`actions.ts` の export 5つすべての先頭の `requirePage()`/`requireAction()`(`src/lib/auth.ts`)。詳しくは §8。
+- 外部 API は **Voyage AI の埋め込み**だけ(2026-10 WO-023)。サーバー(Server Action・`scripts/embed-backfill.ts`)からだけ呼び、キー `VOYAGE_API_KEY` はブラウザに出さない(`NEXT_PUBLIC_` を付けない。ビルドの `.next/static` にキーの名前も呼び先も含まれないことを確認)。
 - 送るのは「特記・要望」の自由文と、過去案件の文(案件名・仕様・メモ・手戻り事由)だけ。**金額・原価・叩き台・補正理由・納期・日付・顧客は送らない**(SPEC §5-2)。Voyage AI は「学習に使わせない」設定にする(代表が設定)。
 - 生成 AI(文を作る AI)は使っていない。叩き台の金額は**決定的な重み付き計算**(`lib/scoring.ts`)。AI の埋め込みは、根拠の4件の**選び方**に「文の意味の近さ」を足すのにだけ使う。
 - ブラウザからDBへ直接は繋がない。接続文字列 `DATABASE_URL` はサーバ側(`src/db/index.ts`)だけが読む。
@@ -49,6 +55,7 @@ flowchart LR
 | 登録・更新 | フォーム → `onSaveSubmit` → `saveEstimate(null, FormData)`(Server Action) → `parseForm` で検証 → insert/update → `revalidatePath('/')` | hidden `id` の有無で分岐。成功後もダイアログは閉じない(B1) |
 | 削除 | 一覧のインライン確認「はい」→ `deleteEstimate(id)` → `revalidatePath('/')` | 物理削除 |
 | 意味検索 | `semanticScores(text)` → 文字列・200文字までを検証 → キーが無ければ使えない旨を返す → Voyage で自由文を埋め込む(`input_type: query`)→ `getSimilarities(vec)`(pgvector の `<=>`)→ `{id: 類似度}` だけを返す(埋め込みの数はブラウザに渡さない) | 失敗しても例外にせず `{ok:false, reason, message}`。画面は条件の点だけで出し、1行で知らせる |
+| ログイン | `/login` の `login(prev, formData)`(Server Action)→ 設定が無ければ断る → IP がロック中なら約1秒待って断る → 合言葉を SHA-256+`timingSafeEqual` で比べる → 違えば回数を数えて約1秒待つ → 合えば `tsumoru_session` cookie を付けて `/` へ | `logout()` は cookie を消して `/login` へ(上の帯の右端のボタン) |
 | 語句検索 | `searchMemos(kw)` → `note`/`rework`/`reason` を ILIKE、先頭20件 | `/` の常時表示の帯(WO-009 で折りたたみを廃止) |
 | 確定金額の記録 | 「記録」→ `recordFinalAmount(input)`(Server Action) → 入力を1つずつ検証 → **叩き台をサーバーで再計算**(特記があれば同じ手順で意味の近さも測る。WO-023)→ `estimates` に新しい行を insert(`status='draft'`・`source='tool'`・`cost=0`=原価未入力)→ `code` 付与 → `revalidatePath('/')` | 母集団(reference/confirmed)・一覧には入らない。再読み込み後は `getToolRecords()` の直近10件を記録欄に表示。誤記録は記録欄の「削除」(確認つき)で消せる → [ISSUE-P-005](issue-log.md)(対応済) |
 
@@ -98,7 +105,11 @@ ENUM(7種): `estimate_status`(reference/draft/confirmed/issued) / `estimate_sour
 | `src/app/page.tsx` | `/` の Server Component。データ取得して `EstimateTool` へ |
 | `src/app/layout.tsx` / `globals.css` | 共通レイアウト(`lang="ja"`)・スタイル。色・文字・余白は `globals.css` の `:root` の変数の1か所(DESIGN-SYSTEM.md)。書体は Zen Kaku Gothic New を `next/font/google` でビルド時に取り込む(WO-022。ビルドにネット接続が要る) |
 | `src/app/error.tsx` / `not-found.tsx` | 想定外のエラー・存在しないページの日本語の画面 |
-| `src/app/actions.ts` | Server Actions(§3) |
+| `src/app/actions.ts` | Server Actions(§3)。**export する関数は必ず先頭で `requireAction()`**(WO-024) |
+| `src/proxy.ts` | 入口のふるい分け(WO-024)。`/login` 以外で cookie が正しくなければ、GET は `/login` へ、それ以外は 401。静的ファイルとファビコンは通す |
+| `src/lib/session.ts` | ログインの計算だけ(WO-024): 設定の読み込み(`authConfig`・未設定/短いなら誰も入れない)・合言葉の比較・cookie の札の作成と確かめ・間違いの回数 |
+| `src/lib/auth.ts` | ページと Server Action の確かめ(`requirePage`・`requireAction`)と cookie の付け外し |
+| `src/app/login/` | ログイン画面(`page.tsx`・`LoginForm.tsx`)と `login`/`logout`(`actions.ts`) |
 | `src/lib/embedding.ts` | Voyage AI の呼び出し(`embedTexts`・時間切れ8秒・応答を1つずつ検証)と、過去案件を1つの文にする `caseText`(外に送る中身)。サーバーと scripts からだけ使う |
 | `scripts/migrate-rehearsal.ts` | マイグレーションの予行演習(1つの接続で BEGIN → SQL → 確かめ → ROLLBACK。何も残さない)。本番に適用する前に使う |
 | `scripts/embed-backfill.ts` | 母集団の埋め込みの無い行に埋め込みを付ける。既定は予行(外に送らない・書かない)、`--write` で書く |
@@ -124,14 +135,42 @@ ENUM(7種): `estimate_status`(reference/draft/confirmed/issued) / `estimate_sour
 |---|---|
 | フレームワーク | Next.js 16.3.0(App Router・Turbopack)/ React 19.2 |
 | DB接続 | `@neondatabase/serverless`(HTTP)+ `drizzle-orm/neon-http` |
-| 環境変数 | `DATABASE_URL` と `VOYAGE_API_KEY`(WO-023。無くても動く=意味検索なし)。ローカル `.env.local` / Vercel の環境変数。値は本書に書かない |
+| 環境変数 | `DATABASE_URL` と `VOYAGE_API_KEY`(WO-023。無くても動く=意味検索なし)、`TSUMORU_PASSWORD`・`TSUMORU_SESSION_SECRET`(WO-024。無いと誰も入れない)。ローカル `.env.local` / Vercel の環境変数。値は本書に書かない |
 | ビルド/起動 | `npm run dev` / `build` / `start`、DB: `db:generate` `db:migrate` `db:push` `db:seed` |
 | 本番 | Vercel。詳細は [deploy-runbook.md](deploy-runbook.md) |
 | **ローカルと本番のDB** | **同じ Neon DB を共有している**(ローカルで書込み操作をすると本番データが変わる) |
 
 ## 7. 既知の制約(設計どおり)
 
-- 認証なしの公開デモ。誰でも登録・編集・削除できる(SPEC §1)。
+- ログインは合言葉ひとつ(WO-024)。入れた人は誰でも登録・編集・削除できる(人ごとの権限は無い)。人ごとのアカウントは実データの段で(ISSUE-P-012)。
 - 意味検索(WO-023)は「特記・要望」に文を入れたときの根拠の選び方だけ。文で別の種類の案件を根拠にはしない(strong の判定は条件の点のまま)。メモの語句検索は ILIKE のまま。
-- 公開デモから誰でも特記を送れる=外部 API(Voyage AI)を呼べる。文の長さはサーバーで200文字までに制限。
+- ~~公開デモから誰でも特記を送れる=外部 API(Voyage AI)を呼べる~~ → WO-024 でログインした人だけに。文の長さはサーバーで200文字までに制限。
+- 間違いの抑え(15分で5回)はサーバーのメモリだけ。Vercel のサーバーどうしで共有されず、止まると消える。並列で大量に試す相手は止めきれない=長い合言葉が本当の守り(§8)。
+- ログアウトは自分の cookie を消すだけ。署名は期限まで有効なので、盗まれた cookie を止めるには鍵 `TSUMORU_SESSION_SECRET` を変える(全員がログアウトになる)。
+- 開いたままの画面でログインの期限(7日)が切れてから操作すると、proxy が 401 を返し、画面は「表示できませんでした」(`error.tsx`)になる【経路から見た推測・画面では未確認】。開き直すとログイン画面に移る。
 - 見積書発行・メール連携・MIS連携は対象外(S3本体。SPEC §8)。
+
+## 8. ログイン(WO-024・D92・2026-10-26)
+
+```mermaid
+flowchart LR
+  R["要求"] --> PX{"proxy.ts\ncookie の署名と期限"}
+  PX -->|"/login"| LG["ログイン画面\nlogin / logout"]
+  PX -->|"正しい"| PG["page.tsx\nrequirePage()"]
+  PX -->|"正しくない・GET"| RD["/login へ転送(307)"]
+  PX -->|"正しくない・POST"| U["401"]
+  PG --> DB[("Neon")]
+  PG --> SA["Server Action 5つ\n先頭で requireAction()"]
+  SA -->|"正しい"| DB
+  SA -->|"正しい"| VA["Voyage AI"]
+  SA -->|"正しくない"| NG["DB・Voyage に触らずに返す"]
+```
+
+- **2段にしている理由**: Server Action は使われているページへの POST として届く。proxy の matcher から外れたり、置き場所が変わったりすると proxy を通らない(Next.js 16 の `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md` の Server Functions の注記・`02-guides/authentication.md`)。そのため、ページとすべての Server Action でもう一度確かめる。proxy を外したビルドで、5つを直接呼んでも DB・Voyage に届かないことを確かめた(test-scenarios「WO-024」)。
+- **cookie の中身**: `v1.<期限のミリ秒>.<乱数16バイト>.<署名>`。署名は `TSUMORU_SESSION_SECRET` による HMAC-SHA256。合言葉そのもの・個人の情報は入れない。期限切れ・ありえない先の期限(7日+1分より先)・形の違うものは通さない。
+- **鍵を合言葉と分ける理由**: 合言葉から鍵を作ると、cookie を1つ盗まれたときに合言葉を手元で総当たりされうる。別の乱数の鍵(32バイト)なら総当たりできない。
+- **合言葉の比べ方**: 入力と正解を SHA-256 で32バイトにそろえてから `crypto.timingSafeEqual`(`===` だと一致した長さが時間から漏れうる)。入力は200文字まで(超えたら比べずに「違います」)。前後の空白は除かない。
+- **未設定のとき**: 合言葉が12文字未満、または鍵が32文字未満なら、cookie の確かめは常に失敗し、`login` は比べずに断る=誰も入れない。環境変数を Vercel の Production にだけ入れれば、プレビュー用のデプロイは自動で「誰も入れない」になる。
+- **間違いの抑えの限界**: 回数はサーバーのメモリだけ。サーバーごと・止まると消える・IP を変える相手には効かない。共有の記録(DB の表や Redis)は、この WO の前提(表を足さない・外のサービスなし)の外。Vercel の Firewall のレート制限は管理画面で設定できる可能性がある【プランで使えるか要確認・未設定】。
+- **Next.js の注記**: Server Action を、それを使っていないページ(例 `/login`)へ POST すると、Next.js は内部でそのアクションを持つページ(`/`)へ転送する(`next/dist/server/app-render/action-handler.js` の `createForwardedActionResponse`)。転送も HTTP の要求なので proxy を通る(確かめ: proxy ありで `/login` に送ると `{}` が返り、DB に届かない)。
+
